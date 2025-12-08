@@ -1,4 +1,4 @@
-import { createSignal } from "../utils/createSignal"
+import { createSignal } from "react-set-signal"
 
 class GlobalStore {
     store = {}

@@ -10,20 +10,20 @@ export default defineConfig(() => {
                 entry: {
                     index: resolve(import.meta.dirname, 'index.js'),
                     store: resolve(import.meta.dirname, 'store.js'),
-                    mutative: resolve(import.meta.dirname, 'mutative.js'),
+                    signals: resolve(import.meta.dirname, 'signals.js'),
                 },
             },
             rollupOptions: {
-                external: ['react', 'react-dom', '@preact/signals-core', '@preact/signals-react', 'mutative'],
+                external: ['react', 'react-dom', '@preact/signals-core', '@preact/signals-react', 'signals'],
                 input: {
                     index: resolve(import.meta.dirname, 'index.js'),
                     store: resolve(import.meta.dirname, 'store.js'),
-                    mutative: resolve(import.meta.dirname, 'mutative.js'),
+                    signals: resolve(import.meta.dirname, 'signals.js'),
                 },
                 output: [
                     {
                         format: 'es',
-                        entryFileNames: 'reactSetSignal.js',
+                        entryFileNames: 'reactSignalStore.js',
                         assetFileNames: 'assets/[name][extname]',
                     }
                 ]

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useReactiveSignal } from "./useReactiveSignal";
+import { useReactiveSignal } from "react-set-signal";
 import { globalStore } from "./globalStore";
 
 /**
@@ -32,30 +32,34 @@ const getStoreSignal = (idOrFunction, initialState) => {
  */
 const createUseStoreHook = (store) => {
     return (keyOrFunction) => {
-        // String key pattern
-        if (typeof keyOrFunction === 'string') {
-            const $signal = useMemo(() => {
+        // Get the signal unconditionally using useMemo
+        const $signal = useMemo(() => {
+            // String key pattern
+            if (typeof keyOrFunction === 'string') {
                 if (!(keyOrFunction in store)) {
                     throw new Error(`Store key "${keyOrFunction}" does not exist. Make sure it was defined in createSignalStore.`)
                 }
                 return store[keyOrFunction]
-            }, [keyOrFunction])
+            }
             
-            const signal = useReactiveSignal($signal)
+            // Function selector pattern
+            if (typeof keyOrFunction === 'function') {
+                return keyOrFunction(store)
+            }
+            
+            throw new Error('useStore expects either a string key or a selector function')
+        }, [keyOrFunction])
+        
+        // Call useReactiveSignal unconditionally
+        const signal = useReactiveSignal($signal)
+        
+        // Return based on the type (not a hook call, so conditional is fine)
+        if (typeof keyOrFunction === 'string') {
             return [signal, $signal.set]
         }
         
-        // Function selector pattern
-        if (typeof keyOrFunction === 'function') {
-            const $signal = useMemo(() => {
-                return keyOrFunction(store)
-            }, [keyOrFunction])
-            
-            const signal = useReactiveSignal($signal)
-            return signal
-        }
-        
-        throw new Error('useStore expects either a string key or a selector function')
+        // Function selector pattern returns just the value
+        return signal
     }
 }
 

@@ -49,11 +49,11 @@
         "default": "./store.js"
       }
     },
-    "./mutative": {
-      "types": "./mutative.d.ts",
+    "./signals": {
+      "types": "./signals.d.ts",
       "import": {
-        "production": "./dist/mutative.js",
-        "default": "./mutative.js"
+        "production": "./dist/signals.js",
+        "default": "./signals.js"
       }
     }
   },
@@ -72,7 +72,8 @@
     "gh-pages": "^6.3.0",
     "mutative": "^1.2.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-set-signal": "^1.0.11"
   },
   "peerDependencies": {
     "react": "^19.2.0",
