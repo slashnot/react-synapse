@@ -1,10 +1,10 @@
-import { r as s, w as t, b as c, E as i, d as r, k as f, x as g } from "./_shared.js";
+import { batch as t, computed as c, createSignal as i, effect as f, signal as g, useReactive as l, useReactiveSignal as n } from "react-set-signal";
 export {
-  s as batch,
-  t as computed,
-  c as createSignal,
-  i as effect,
-  r as signal,
-  f as useReactive,
-  g as useReactiveSignal
+  t as batch,
+  c as computed,
+  i as createSignal,
+  f as effect,
+  g as signal,
+  l as useReactive,
+  n as useReactiveSignal
 };

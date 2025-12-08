@@ -17,7 +17,10 @@ export default defineConfig(() => {
             rollupOptions: {
                 external: [
                     'react',
-                    'react-dom'
+                    'react-dom',
+                    'react-set-signal',
+                    '@preact/signals-core',
+                    'mutative'
                 ],
                 output: {
                     format: 'es',
