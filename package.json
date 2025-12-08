@@ -1,6 +1,7 @@
 {
   "name": "react-signal-store",
   "version": "0.1.0",
+  "type": "module",
   "description": "A lightweight React library for fine-grained reactive state management using Preact Signals, with built-in immutable updates via Mutative, minimal re-renders, and global store support.",
   "keywords": [
     "react",
@@ -19,42 +20,32 @@
   "author": "Ramkumar K",
   "email": "slashnot84@gmail.com",
   "homepage": "https://slashnot.github.io/react-signal-store",
-  "main": "./dist/reactSignalStore.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./index.d.ts",
+  "sideEffects": false,
   "files": [
     "dist",
-    "hooks",
-    "utils",
-    "index.js",
     "index.d.ts",
-    "store.js",
     "store.d.ts",
-    "mutative.js",
-    "mutative.d.ts",
-    "*.d.ts"
+    "signals.d.ts"
   ],
   "license": "ISC",
   "exports": {
     ".": {
       "types": "./index.d.ts",
-      "import": {
-        "production": "./dist/reactSignalStore.js",
-        "default": "./index.js"
-      }
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
     },
     "./store": {
       "types": "./store.d.ts",
-      "import": {
-        "production": "./dist/store.js",
-        "default": "./store.js"
-      }
+      "import": "./dist/store.js",
+      "require": "./dist/store.js"
     },
     "./signals": {
       "types": "./signals.d.ts",
-      "import": {
-        "production": "./dist/signals.js",
-        "default": "./signals.js"
-      }
+      "import": "./dist/signals.js",
+      "require": "./dist/signals.js"
     }
   },
   "scripts": {
@@ -68,16 +59,17 @@
   },
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
-    "@preact/signals-core": "^1.10.0",
-    "gh-pages": "^6.3.0",
-    "mutative": "^1.2.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-set-signal": "^1.0.11"
+    "gh-pages": "^6.3.0"
   },
   "peerDependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "react-set-signal": "^1.0.11"
+  },
+  "peerDependenciesMeta": {
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

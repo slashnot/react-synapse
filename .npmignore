@@ -1,0 +1,20 @@
+# Source files - only dist should be used
+index.js
+store.js
+signals.js
+hooks/
+tests/
+example/
+
+# Config files
+vite.config.js
+vitest.config.js
+tsconfig.json
+eslint.config.js
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
+# Development
+.git
+.github
+*.map

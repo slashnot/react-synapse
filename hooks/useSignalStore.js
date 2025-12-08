@@ -129,8 +129,5 @@ const useSignalStore = (idOrFunction, initialState) => {
     }
 }
 
-// --------------
-window.globalStore = globalStore
-
 export { useSignalStore, createSignalStore }
 export default useSignalStore;

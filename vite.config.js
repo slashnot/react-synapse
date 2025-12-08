@@ -12,23 +12,26 @@ export default defineConfig(() => {
                     store: resolve(import.meta.dirname, 'store.js'),
                     signals: resolve(import.meta.dirname, 'signals.js'),
                 },
+                formats: ['es'],
             },
             rollupOptions: {
-                external: ['react', 'react-dom', '@preact/signals-core', '@preact/signals-react', 'signals'],
-                input: {
-                    index: resolve(import.meta.dirname, 'index.js'),
-                    store: resolve(import.meta.dirname, 'store.js'),
-                    signals: resolve(import.meta.dirname, 'signals.js'),
-                },
-                output: [
-                    {
-                        format: 'es',
-                        entryFileNames: 'reactSignalStore.js',
-                        assetFileNames: 'assets/[name][extname]',
-                    }
-                ]
+                external: [
+                    'react',
+                    'react-dom',
+                    '@preact/signals-core',
+                    '@preact/signals-react',
+                    'react-set-signal',
+                    'mutative'
+                ],
+                output: {
+                    format: 'es',
+                    entryFileNames: '[name].js',
+                    // Put shared code in a predictable chunk name
+                    chunkFileNames: '_shared.js',
+                }
             },
-            sourcemap: true,
+            // Disable sourcemaps for cleaner debugging
+            sourcemap: false,
         }
     }
 
