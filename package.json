@@ -1,5 +1,5 @@
 {
-  "name": "react-signal-store",
+  "name": "react-synapse",
   "version": "0.1.0",
   "type": "module",
   "description": "A lightweight React library for fine-grained reactive state management using Preact Signals, with built-in immutable updates via Mutative, minimal re-renders, and global store support.",
@@ -19,7 +19,7 @@
   ],
   "author": "Ramkumar K",
   "email": "slashnot84@gmail.com",
-  "homepage": "https://slashnot.github.io/react-signal-store",
+  "homepage": "https://slashnot.github.io/react-synapse",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./index.d.ts",
