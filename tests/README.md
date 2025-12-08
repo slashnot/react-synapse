@@ -1,7 +1,7 @@
 # Test Coverage Summary
 
 ## Overview
-Comprehensive unit tests for `react-set-signal` using Vitest and React Testing Library.
+Comprehensive unit tests for `react-synapse` using Vitest and React Testing Library.
 
 ## Test Files
 

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useSignalStore, createSignalStore } from '../hooks/useSignalStore'
 import { globalStore } from '../hooks/globalStore'
-import { createSignal } from '../utils/createSignal'
+import { createSignal } from '../index'
 
 describe('useSignalStore', () => {
   beforeEach(() => {

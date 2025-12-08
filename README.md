@@ -1,4 +1,4 @@
-# react-set-signal
+# react-synapse
 
 A lightweight React library that brings the power of [Preact Signals](https://preactjs.com/guide/v10/signals/) to React applications with enhanced features and an intuitive API. Enjoy fine-grained reactivity with immutable state updates powered by [Mutative](https://github.com/unadlib/mutative).
 
@@ -15,19 +15,19 @@ A lightweight React library that brings the power of [Preact Signals](https://pr
 ## Installation
 
 ```bash
-npm install react-set-signal
+npm install react-synapse
 ```
 
 or with pnpm:
 
 ```bash
-pnpm add react-set-signal
+pnpm add react-synapse
 ```
 
 ## Quick Start
 
 ```javascript
-import { useReactive } from 'react-set-signal';
+import { useReactive } from 'react-synapse';
 
 function Counter() {
   const [count, setCount] = useReactive(0);
@@ -49,7 +49,7 @@ Traditional state management libraries like Redux, Zustand, or MobX require sign
 - Redux: Actions, reducers, action creators, middleware, selectors
 - Context API: Provider wrappers, consumer hooks, memoization
 
-With `react-set-signal`, you get a simple, intuitive API:
+With `react-synapse`, you get a simple, intuitive API:
 
 ```javascript
 // That's it! No providers, no reducers, no actions
@@ -82,7 +82,7 @@ const [user, setUser] = useStore('user')
 
 ### 📊 Performance Comparison
 
-| Feature | Redux | Context API | Zustand | react-set-signal |
+| Feature | Redux | Context API | Zustand | react-synapse |
 |---------|-------|-------------|---------|------------------|
 | Boilerplate | High | Medium | Low | **Minimal** |
 | Re-render Scope | Store-wide | Context-wide | Selector-based | **Signal-level** |
@@ -126,7 +126,7 @@ function UserForm() {
 }
 ```
 
-**After (react-set-signal):**
+**After (react-synapse):**
 ```javascript
 // store.js
 export const { useStore } = createSignalStore({
@@ -165,7 +165,7 @@ Creates a typed global store with multiple signal-based state entries. Returns a
 **Example:**
 
 ```typescript
-import { createSignalStore } from 'react-set-signal';
+import { createSignalStore } from 'react-synapse';
 
 // Create your store with initial state
 const { store, useStore } = createSignalStore({
@@ -315,7 +315,7 @@ A generic React hook for managing global state. For better TypeScript support, p
 **Example:**
 
 ```javascript
-import { useSignalStore } from 'react-set-signal';
+import { useSignalStore } from 'react-synapse';
 
 function Counter() {
   const [count, setCount] = useSignalStore('globalCounter', 0);
@@ -341,7 +341,7 @@ A React hook that creates a reactive state with Preact Signals under the hood. S
 **Example:**
 
 ```javascript
-import { useReactive } from 'react-set-signal';
+import { useReactive } from 'react-synapse';
 
 function TodoList() {
   const [todos, setTodos] = useReactive([
@@ -390,7 +390,7 @@ A React hook that subscribes to an existing Preact Signal and returns its curren
 **Example:**
 
 ```javascript
-import { createSignal, useReactiveSignal } from 'react-set-signal';
+import { createSignal, useReactiveSignal } from 'react-synapse';
 
 // Create a global signal
 const $counter = createSignal(0);
@@ -431,7 +431,7 @@ Creates a new Preact Signal with an enhanced API that includes an Immer-style se
 **Example:**
 
 ```javascript
-import { createSignal } from 'react-set-signal';
+import { createSignal } from 'react-synapse';
 
 const $user = createSignal({
   name: 'John',
@@ -457,7 +457,7 @@ $user.set((current) => ({ ...current, age: current.age + 1 }));
 The library also re-exports core Preact Signals functionality:
 
 ```javascript
-import { signal, effect, computed } from 'react-set-signal';
+import { signal, effect, computed } from 'react-synapse';
 ```
 
 - `signal(initialValue)` - Create a standard Preact Signal
@@ -472,7 +472,7 @@ Here's a full example of setting up a typed global store:
 
 ```typescript
 // store.ts
-import { createSignalStore } from 'react-set-signal';
+import { createSignalStore } from 'react-synapse';
 
 interface User {
   id: number;
@@ -562,7 +562,7 @@ Use Preact's `effect` for side effects:
 
 **Example with effect:**
 ```javascript
-import { createSignal, effect } from 'react-set-signal';
+import { createSignal, effect } from 'react-synapse';
 
 const $count = createSignal(0);
 
@@ -578,7 +578,7 @@ Use Preact's `computed` for computed values:
 **Example with computed:**
 
 ```javascript
-import { createSignal, computed, useReactiveSignal } from 'react-set-signal';
+import { createSignal, computed, useReactiveSignal } from 'react-synapse';
 
 const $firstName = createSignal('John');
 const $lastName = createSignal('Doe');
@@ -598,7 +598,7 @@ $firstName.set('Jane');
 
 ## How It Works
 
-`react-set-signal` uses React's `useSyncExternalStore` hook to subscribe to Preact Signals, ensuring compatibility with React 18+ concurrent features. State updates are handled through [Mutative](https://github.com/unadlib/mutative), providing Immer-style immutable updates with better performance.
+`react-synapse` uses React's `useSyncExternalStore` hook to subscribe to Preact Signals, ensuring compatibility with React 18+ concurrent features. State updates are handled through [Mutative](https://github.com/unadlib/mutative), providing Immer-style immutable updates with better performance.
 
 ## Performance Benefits
 

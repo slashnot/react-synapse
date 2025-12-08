@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useReactiveSignal } from "react-set-signal";
+import { useReactiveSignal } from "react-synapse";
 import { globalStore } from "./globalStore";
 
 /**
