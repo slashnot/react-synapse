@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Signal, useReactiveSignal, computed } from "react-synapse";
+import { Signal, useReactiveSignal, computed } from "react-set-signal";
 import { globalStore } from "./globalStore";
 
 /**
@@ -48,6 +48,15 @@ const createUseStoreHook = (store) => {
                 if (result instanceof Signal) {
                     return result
                 }
+
+                // If it returns an Array, wrap it in a computed to make it reactive
+                if (Array.isArray(result)) {
+                    return computed(()=>{
+                        const states = keyOrFunction(store)
+                        return states.map(state => state.value)
+                    })
+                }
+
                 // If it returns a plain value/object, wrap it in a computed to make it reactive
                 return computed(() => {
                     const computedStates = {}

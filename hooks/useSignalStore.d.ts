@@ -1,4 +1,4 @@
-import { ReactSetSignal } from 'react-synapse'
+import { ReactSetSignal } from 'react-set-signal'
 
 /**
  * Type-safe global store mapping keys to their signal types
