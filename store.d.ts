@@ -13,5 +13,3 @@ export type {
   GlobalStoreType
 } from "./hooks/useSignalStore";
 
-// Mutative types (for Immer-style draft mutations)
-export type { Draft, DraftedObject, Immutable, Options, Patch, Patches, PatchesOptions } from "mutative";

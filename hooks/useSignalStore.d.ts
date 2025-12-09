@@ -1,4 +1,4 @@
-import { ReactSetSignal } from '../utils/createSignal'
+import { ReactSetSignal } from 'react-synapse'
 
 /**
  * Type-safe global store mapping keys to their signal types
@@ -13,9 +13,24 @@ export type TypedGlobalStore<T extends Record<string, any>> = {
 export type SignalSetter<T> = (fnOrValue: T | ((draft: T) => T | void)) => T
 
 /**
+ * Helper type to unwrap a single signal
+ */
+export type UnwrapSignal<T> = T extends ReactSetSignal<infer V> ? V : T
+
+/**
+ * Helper type to unwrap signals in an object (one level deep)
+ * If T is a signal, unwrap it. If T is an object, unwrap each property that is a signal.
+ */
+export type UnwrapSignals<T> = T extends ReactSetSignal<infer V>
+  ? V
+  : T extends object
+    ? { [K in keyof T]: UnwrapSignal<T[K]> }
+    : T
+
+/**
  * Selector function type for accessing store values
  */
-export type StoreSelector<T extends Record<string, any>, R> = (store: TypedGlobalStore<T>) => ReactSetSignal<R>
+export type StoreSelector<T extends Record<string, any>, R> = (store: TypedGlobalStore<T>) => R
 
 /**
  * Typed hook for accessing store values with full type inference
@@ -46,7 +61,7 @@ export interface TypedUseStore<T extends Record<string, any>> {
    * // theme is typed based on the store definition
    * ```
    */
-  <R>(selector: StoreSelector<T, R>): R
+  <R>(selector: StoreSelector<T, R>): UnwrapSignals<R>
 }
 
 /**
@@ -150,14 +165,14 @@ export function useSignalStore<T>(
  * @param fn - Function that receives the global store and returns a signal
  * @returns The current value of the selected signal
  */
-export function useSignalStore<T>(
-  fn: (store: GlobalStoreType) => ReactSetSignal<T>
-): T
+export function useSignalStore<R>(
+  fn: (store: GlobalStoreType) => R
+): UnwrapSignals<R>
 
 /**
  * Combined overload signature
  */
-export function useSignalStore<T>(
-  idOrFunction: string | ((store: GlobalStoreType) => ReactSetSignal<T>),
+export function useSignalStore<T, R = any>(
+  idOrFunction: string | ((store: GlobalStoreType) => R),
   initialState?: T
-): [T, SignalSetter<T>] | T
+): [T, SignalSetter<T>] | UnwrapSignals<R>
