@@ -239,20 +239,22 @@ function UserProfile() {
 #### Pattern 2: Function Selector (returns value only)
 
 **Parameters:**
-- `selector` - A function that receives the typed store and returns a signal
+- `selector` - A function that receives the typed store and returns a signal, array of signals, or object of signals
 
 **Returns:**
-- `value` - The current value of the selected signal (fully typed)
+- `value` - The current value(s) of the selected signal(s) (fully typed)
 
-This pattern is useful when you only need to read a value without updating it, or when you want a more functional style.
+This pattern is useful when you only need to read a value without updating it, or when you want a more functional style. The selector supports three return types:
 
-**Example:**
+##### Selector Returns a Signal Directly
+
+When your selector returns a single Signal, it's used directly for maximum efficiency:
 
 ```tsx
 import { useStore } from './store';
 
 function ThemeDisplay() {
-  // Function selector pattern - returns just the value, no setter
+  // Selector returns a Signal directly - used as-is
   const theme = useStore(s => s.theme);
   
   // theme is typed as 'light' | 'dark' (or string based on your store)
@@ -260,7 +262,7 @@ function ThemeDisplay() {
 }
 
 function UserStats() {
-  // Access nested values directly
+  // Access a single signal directly
   const user = useStore(s => s.user);
   
   // user is typed based on your store definition
@@ -271,6 +273,71 @@ function UserStats() {
     </div>
   );
 }
+```
+
+##### Selector Returns an Array of Signals
+
+When your selector returns an array of Signals, they are automatically wrapped in a `computed` to make them reactive. The hook returns an array of unwrapped values:
+
+```tsx
+import { useStore } from './store';
+
+function MultiValueDisplay() {
+  // Selector returns an array of Signals - wrapped in computed
+  const [user, theme, counter] = useStore(s => [s.user, s.theme, s.counter]);
+  
+  // Each value is unwrapped and reactive
+  return (
+    <div className={theme}>
+      <p>User: {user.name}</p>
+      <p>Counter: {counter}</p>
+    </div>
+  );
+}
+```
+
+##### Selector Returns a Plain Object of Signals
+
+When your selector returns a plain object containing Signals, they are automatically wrapped in a `computed` to make them reactive. The hook returns an object with unwrapped values:
+
+```tsx
+import { useStore } from './store';
+
+function DashboardStats() {
+  // Selector returns an object of Signals - wrapped in computed
+  const { currentUser, currentTheme } = useStore(s => ({
+    currentUser: s.user,
+    currentTheme: s.theme
+  }));
+  
+  // Values are unwrapped and available with your custom keys
+  return (
+    <div className={currentTheme}>
+      <h1>Welcome, {currentUser.name}!</h1>
+    </div>
+  );
+}
+```
+
+##### Re-render Behavior with Function Selectors
+
+> ⚠️ **Important**: When using the functional approach with arrays or objects, **any change to any of the returned state properties or array elements will trigger a re-render** of the component. This is because all the selected signals are combined into a single computed signal.
+
+For example:
+
+```tsx
+// This component re-renders when EITHER user OR theme OR counter changes
+const [user, theme, counter] = useStore(s => [s.user, s.theme, s.counter]);
+
+// This component re-renders when EITHER currentUser OR currentTheme changes
+const { currentUser, currentTheme } = useStore(s => ({
+  currentUser: s.user,
+  currentTheme: s.theme
+}));
+
+// For fine-grained control, use separate useStore calls:
+const user = useStore(s => s.user);     // Only re-renders on user changes
+const theme = useStore(s => s.theme);   // Only re-renders on theme changes
 ```
 
 #### Combining Both Patterns
