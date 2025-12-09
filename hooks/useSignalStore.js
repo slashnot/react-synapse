@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useReactiveSignal } from "react-synapse";
+import { Signal, useReactiveSignal, computed } from "react-synapse";
 import { globalStore } from "./globalStore";
 
 /**
@@ -32,7 +32,6 @@ const getStoreSignal = (idOrFunction, initialState) => {
  */
 const createUseStoreHook = (store) => {
     return (keyOrFunction) => {
-        // Get the signal unconditionally using useMemo
         const $signal = useMemo(() => {
             // String key pattern
             if (typeof keyOrFunction === 'string') {
@@ -41,23 +40,32 @@ const createUseStoreHook = (store) => {
                 }
                 return store[keyOrFunction]
             }
-            
+
             // Function selector pattern
             if (typeof keyOrFunction === 'function') {
-                return keyOrFunction(store)
+                const result = keyOrFunction(store)
+                // If the selector returns a Signal, use it directly
+                if (result instanceof Signal) {
+                    return result
+                }
+                // If it returns a plain value/object, wrap it in a computed to make it reactive
+                return computed(() => {
+                    const computedStates = {}
+                    const states = keyOrFunction(store)
+                    for (const key in states) {
+                        computedStates[key] = states[key].value
+                    }
+                    return computedStates
+                })
             }
-            
+
             throw new Error('useStore expects either a string key or a selector function')
         }, [keyOrFunction])
-        
-        // Call useReactiveSignal unconditionally
+
         const signal = useReactiveSignal($signal)
-        
-        // Return based on the type (not a hook call, so conditional is fine)
         if (typeof keyOrFunction === 'string') {
             return [signal, $signal.set]
         }
-        
         // Function selector pattern returns just the value
         return signal
     }
@@ -86,14 +94,14 @@ const createSignalStore = (initialStates) => {
     if (typeof initialStates !== 'object' || initialStates === null) {
         throw new Error("createSignalStore expects an object as initialStates")
     }
-    
+
     // Create all signals in the global store
     for (const key in initialStates) {
         globalStore.setStoreState(key, initialStates[key])
     }
-    
+
     const store = globalStore.getStore()
-    
+
     // Return both the store and a typed useStore hook
     return {
         store,
@@ -118,7 +126,7 @@ const useSignalStore = (idOrFunction, initialState) => {
         initialState
     ])
     const signal = useReactiveSignal($signal)
-    
+
     // For string pattern: return tuple [state, setter]
     // For function pattern: return just the state value
     if (typeof idOrFunction === 'string') {
