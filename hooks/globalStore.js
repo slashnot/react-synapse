@@ -27,7 +27,6 @@ class GlobalStore {
         if (!(key in this.store)) {
             this.store[key] = createSignal(value)
             this.store[key].id = key
-            console.log(`Created signal with id "${key}" in the global store with value:`, value)
         }
         else {
             console.warn(`Signal with id "${key}" already exists in the global store. Skipping creation.`)
