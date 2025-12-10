@@ -1,6 +1,6 @@
 {
   "name": "react-synapse",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "A lightweight React library for fine-grained reactive state management using Preact Signals, with built-in immutable updates via Mutative, minimal re-renders, and global store support.",
   "keywords": [
