@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Signal, useReactiveSignal, computed } from "react-set-signal";
 import { globalStore } from "./globalStore";
 
@@ -59,6 +59,14 @@ const createUseStoreHook = (store) => {
     return (keyOrFunction, options = {}) => {
         const { unwrap = true } = options;
         
+        // Use refs to maintain stable references across renders
+        const selectorRef = useRef(keyOrFunction);
+        const memoRef = useRef({ prevValues: null, prevResult: null, isArray: null });
+        const computedRef = useRef(null);
+        
+        // Update selector ref on each render (so computed always uses latest selector)
+        selectorRef.current = keyOrFunction;
+        
         const $signal = useMemo(() => {
             // String key pattern
             if (typeof keyOrFunction === 'string') {
@@ -81,56 +89,62 @@ const createUseStoreHook = (store) => {
                     return result
                 }
 
-                // If it returns an Array, wrap it in a memoized computed to make it reactive
-                if (Array.isArray(result)) {
-                    // Memoization state stored in closure (lives with the computed)
-                    let prevValues = null;
-                    let prevResult = null;
+                // Track if result type is array for the memoization logic
+                const isArray = Array.isArray(result);
+                const memo = memoRef.current;
+                
+                // Reset memo if result type changed
+                if (memo.isArray !== isArray) {
+                    memo.prevValues = null;
+                    memo.prevResult = null;
+                    memo.isArray = isArray;
+                }
+                
+                // Reuse existing computed if possible
+                if (computedRef.current) {
+                    return computedRef.current;
+                }
+
+                // Create computed that reads from refs for stable behavior
+                const $computed = computed(() => {
+                    const currentSelector = selectorRef.current;
+                    const states = currentSelector(store);
                     
-                    const $computed = computed(() => {
-                        const states = keyOrFunction(store);
+                    if (isArray) {
                         const newValues = states.map(state => state.value);
                         
                         // Shallow equality check - return same reference if unchanged
-                        if (shallowArrayEqual(prevValues, newValues)) {
-                            return prevResult;
+                        if (shallowArrayEqual(memo.prevValues, newValues)) {
+                            return memo.prevResult;
                         }
                         
-                        prevValues = newValues;
-                        prevResult = [...newValues];  // Create new array only when values change
-                        return prevResult;
-                    });
-                    
-                    return $computed;
-                }
-
-                // If it returns a plain object, wrap it in a memoized computed to make it reactive
-                // Memoization state stored in closure (lives with the computed)
-                let prevValues = null;
-                let prevResult = null;
-                
-                const $computed = computed(() => {
-                    const states = keyOrFunction(store);
-                    const computedStates = {};
-                    for (const key in states) {
-                        computedStates[key] = states[key].value;
+                        memo.prevValues = newValues;
+                        memo.prevResult = [...newValues];
+                        return memo.prevResult;
+                    } else {
+                        const computedStates = {};
+                        for (const key in states) {
+                            computedStates[key] = states[key].value;
+                        }
+                        
+                        // Shallow equality check - return same reference if unchanged
+                        if (shallowObjectEqual(memo.prevValues, computedStates)) {
+                            return memo.prevResult;
+                        }
+                        
+                        memo.prevValues = computedStates;
+                        memo.prevResult = { ...computedStates };
+                        return memo.prevResult;
                     }
-                    
-                    // Shallow equality check - return same reference if unchanged
-                    if (shallowObjectEqual(prevValues, computedStates)) {
-                        return prevResult;
-                    }
-                    
-                    prevValues = computedStates;
-                    prevResult = { ...computedStates };  // Create new object only when values change
-                    return prevResult;
                 });
                 
+                computedRef.current = $computed;
                 return $computed;
             }
 
             throw new Error('useStore expects either a string key or a selector function')
-        }, [keyOrFunction, unwrap])
+        // Only depend on unwrap and whether it's a string/function (not the function reference itself)
+        }, [typeof keyOrFunction === 'string' ? keyOrFunction : 'function', unwrap])
 
         // When unwrap is false and result is array/object, return directly without useReactiveSignal
         if (!unwrap && typeof keyOrFunction === 'function') {
