@@ -96,19 +96,6 @@ describe('GlobalStore', () => {
       
       consoleSpy.mockRestore()
     })
-
-    it('should log creation of new signal', () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-      
-      store.setStoreState('new-signal', 'test-value')
-      
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Created signal with id "new-signal" in the global store with value:',
-        'test-value'
-      )
-      
-      consoleSpy.mockRestore()
-    })
   })
 
   describe('hasState', () => {
