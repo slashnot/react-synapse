@@ -3,6 +3,26 @@ import { Signal, useReactiveSignal, computed } from "react-set-signal";
 import { globalStore } from "./globalStore";
 
 /**
+ * Shallow equality comparison for arrays
+ */
+const shallowArrayEqual = (arr1, arr2) => {
+    if (!arr1 || !arr2) return false;
+    if (arr1.length !== arr2.length) return false;
+    return arr1.every((v, i) => Object.is(v, arr2[i]));
+};
+
+/**
+ * Shallow equality comparison for objects
+ */
+const shallowObjectEqual = (obj1, obj2) => {
+    if (!obj1 || !obj2) return false;
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+    if (keys1.length !== keys2.length) return false;
+    return keys1.every(key => key in obj2 && Object.is(obj1[key], obj2[key]));
+};
+
+/**
  * Internal function to get or create a store signal
  */
 const getStoreSignal = (idOrFunction, initialState) => {
@@ -26,12 +46,19 @@ const getStoreSignal = (idOrFunction, initialState) => {
 /**
  * Create a typed useStore hook bound to a specific store
  * Supports both string key pattern and function selector pattern.
- * 
+ *
  * @param {Object} store - The store object containing signals
  * @returns {Function} A typed useStore hook
  */
 const createUseStoreHook = (store) => {
-    return (keyOrFunction) => {
+    /**
+     * @param {string|Function} keyOrFunction - Either a string key or a selector function
+     * @param {Object} [options] - Options for the hook
+     * @param {boolean} [options.unwrap=true] - When false, returns raw signals instead of unwrapped values (for fine-grained control)
+     */
+    return (keyOrFunction, options = {}) => {
+        const { unwrap = true } = options;
+        
         const $signal = useMemo(() => {
             // String key pattern
             if (typeof keyOrFunction === 'string') {
@@ -49,27 +76,69 @@ const createUseStoreHook = (store) => {
                     return result
                 }
 
-                // If it returns an Array, wrap it in a computed to make it reactive
-                if (Array.isArray(result)) {
-                    return computed(()=>{
-                        const states = keyOrFunction(store)
-                        return states.map(state => state.value)
-                    })
+                // If unwrap is false, return signals directly for fine-grained control
+                if (!unwrap) {
+                    return result
                 }
 
-                // If it returns a plain value/object, wrap it in a computed to make it reactive
-                return computed(() => {
-                    const computedStates = {}
-                    const states = keyOrFunction(store)
+                // If it returns an Array, wrap it in a memoized computed to make it reactive
+                if (Array.isArray(result)) {
+                    // Memoization state stored in closure (lives with the computed)
+                    let prevValues = null;
+                    let prevResult = null;
+                    
+                    const $computed = computed(() => {
+                        const states = keyOrFunction(store);
+                        const newValues = states.map(state => state.value);
+                        
+                        // Shallow equality check - return same reference if unchanged
+                        if (shallowArrayEqual(prevValues, newValues)) {
+                            return prevResult;
+                        }
+                        
+                        prevValues = newValues;
+                        prevResult = [...newValues];  // Create new array only when values change
+                        return prevResult;
+                    });
+                    
+                    return $computed;
+                }
+
+                // If it returns a plain object, wrap it in a memoized computed to make it reactive
+                // Memoization state stored in closure (lives with the computed)
+                let prevValues = null;
+                let prevResult = null;
+                
+                const $computed = computed(() => {
+                    const states = keyOrFunction(store);
+                    const computedStates = {};
                     for (const key in states) {
-                        computedStates[key] = states[key].value
+                        computedStates[key] = states[key].value;
                     }
-                    return computedStates
-                })
+                    
+                    // Shallow equality check - return same reference if unchanged
+                    if (shallowObjectEqual(prevValues, computedStates)) {
+                        return prevResult;
+                    }
+                    
+                    prevValues = computedStates;
+                    prevResult = { ...computedStates };  // Create new object only when values change
+                    return prevResult;
+                });
+                
+                return $computed;
             }
 
             throw new Error('useStore expects either a string key or a selector function')
-        }, [keyOrFunction])
+        }, [keyOrFunction, unwrap])
+
+        // When unwrap is false and result is array/object, return directly without useReactiveSignal
+        if (!unwrap && typeof keyOrFunction === 'function') {
+            const result = keyOrFunction(store);
+            if (!(result instanceof Signal)) {
+                return result;
+            }
+        }
 
         const signal = useReactiveSignal($signal)
         if (typeof keyOrFunction === 'string') {

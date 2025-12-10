@@ -10,7 +10,8 @@ export type {
   TypedSignalStore,
   TypedUseStore,
   SignalSetter,
-  StoreSelector
+  StoreSelector,
+  UseStoreOptions
 } from './hooks/useSignalStore'
 
 // Re-export from react-set-signal

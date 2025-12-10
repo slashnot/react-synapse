@@ -10,6 +10,7 @@ export type {
   TypedUseStore,
   SignalSetter,
   StoreSelector,
-  GlobalStoreType
+  GlobalStoreType,
+  UseStoreOptions
 } from "./hooks/useSignalStore";
 

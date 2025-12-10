@@ -33,6 +33,19 @@ export type UnwrapSignals<T> = T extends ReactSetSignal<infer V>
 export type StoreSelector<T extends Record<string, any>, R> = (store: TypedGlobalStore<T>) => R
 
 /**
+ * Options for useStore hook
+ */
+export interface UseStoreOptions {
+  /**
+   * When false, returns raw signals instead of unwrapped values.
+   * This allows fine-grained control over reactivity by letting consumers
+   * access .value on signals individually.
+   * @default true
+   */
+  unwrap?: boolean
+}
+
+/**
  * Typed hook for accessing store values with full type inference
  * Supports both string key pattern and function selector pattern.
  */
@@ -41,7 +54,7 @@ export interface TypedUseStore<T extends Record<string, any>> {
    * Access a store value by key with full type inference
    * @param key - The key of the store entry
    * @returns A tuple with [value, setter] where value is typed based on the store
-   * 
+   *
    * @example
    * ```tsx
    * const [user, setUser] = useStore('user')
@@ -51,10 +64,10 @@ export interface TypedUseStore<T extends Record<string, any>> {
   <K extends keyof T & string>(key: K): [T[K], SignalSetter<T[K]>]
   
   /**
-   * Access a store value using a selector function
+   * Access a store value using a selector function (with auto-unwrap)
    * @param selector - Function that receives the typed store and returns a signal
    * @returns The current value of the selected signal
-   * 
+   *
    * @example
    * ```tsx
    * const theme = useStore(s => s.theme)
@@ -62,6 +75,30 @@ export interface TypedUseStore<T extends Record<string, any>> {
    * ```
    */
   <R>(selector: StoreSelector<T, R>): UnwrapSignals<R>
+
+  /**
+   * Access a store value using a selector function with options
+   * @param selector - Function that receives the typed store and returns a signal or signals
+   * @param options - Options for controlling the hook behavior
+   * @returns When unwrap is true (default): the unwrapped values. When unwrap is false: the raw signals.
+   *
+   * @example
+   * ```tsx
+   * // Default behavior (unwrap: true) - values are unwrapped
+   * const { user, theme } = useStore(s => ({ user: s.user, theme: s.theme }))
+   *
+   * // Fine-grained control (unwrap: false) - signals returned directly
+   * const { user, theme } = useStore(
+   *   s => ({ user: s.user, theme: s.theme }),
+   *   { unwrap: false }
+   * )
+   * // Access .value on each signal for fine-grained reactivity
+   * const userName = user.value.name
+   * ```
+   */
+  <R>(selector: StoreSelector<T, R>, options: { unwrap: false }): R
+  <R>(selector: StoreSelector<T, R>, options: { unwrap: true }): UnwrapSignals<R>
+  <R>(selector: StoreSelector<T, R>, options?: UseStoreOptions): UnwrapSignals<R> | R
 }
 
 /**

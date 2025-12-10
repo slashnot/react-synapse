@@ -1,6 +1,6 @@
-import { useMemo as g } from "react";
-import { b as h, x as f, u as c, w as l } from "./_shared.js";
-class u {
+import { useMemo as w } from "react";
+import { b as $, x as m, u as h, w as p } from "./_shared.js";
+class b {
   store = {};
   // --------------
   getStore() {
@@ -8,76 +8,96 @@ class u {
   }
   // --------------
   getStoreValues() {
-    const t = {};
+    const e = {};
     for (const r in this.store)
-      t[r] = this.store[r].value;
-    return t;
+      e[r] = this.store[r].value;
+    return e;
   }
   // --------------
-  getStoreState(t) {
-    return this.store[t];
+  getStoreState(e) {
+    return this.store[e];
   }
   // --------------
-  setStoreState(t, r) {
-    return t in this.store ? console.warn(`Signal with id "${t}" already exists in the global store. Skipping creation.`) : (this.store[t] = h(r), this.store[t].id = t, console.log(`Created signal with id "${t}" in the global store with value:`, r)), this.store[t];
+  setStoreState(e, r) {
+    return e in this.store ? console.warn(`Signal with id "${e}" already exists in the global store. Skipping creation.`) : (this.store[e] = $(r), this.store[e].id = e), this.store[e];
   }
   // --------------
-  hasState(t) {
-    return t in this.store;
+  hasState(e) {
+    return e in this.store;
   }
   // --------------
   clearStore() {
     return this.store = {}, this.store;
   }
 }
-const s = new u(), p = (e, t) => {
-  if (typeof e == "string") {
-    if (e.length === 0)
+const l = new b(), x = (t, e) => !t || !e || t.length !== e.length ? !1 : t.every((r, s) => Object.is(r, e[s])), E = (t, e) => {
+  if (!t || !e) return !1;
+  const r = Object.keys(t), s = Object.keys(e);
+  return r.length !== s.length ? !1 : r.every((a) => a in e && Object.is(t[a], e[a]));
+}, y = (t, e) => {
+  if (typeof t == "string") {
+    if (t.length === 0)
       throw new Error("Store ID cannot be an empty string");
-    return s.hasState(e) ? s.getStoreState(e) : s.setStoreState(e, t);
+    return l.hasState(t) ? l.getStoreState(t) : l.setStoreState(t, e);
   }
-  if (typeof e == "function")
-    return e(s.getStore());
+  if (typeof t == "function")
+    return t(l.getStore());
   throw new Error("useSignalStore expects either a string ID or a function");
-}, w = (e) => (t) => {
-  const r = g(() => {
-    if (typeof t == "string") {
-      if (!(t in e))
-        throw new Error(`Store key "${t}" does not exist. Make sure it was defined in createSignalStore.`);
-      return e[t];
+}, V = (t) => (e, r = {}) => {
+  const { unwrap: s = !0 } = r, a = w(() => {
+    if (typeof e == "string") {
+      if (!(e in t))
+        throw new Error(`Store key "${e}" does not exist. Make sure it was defined in createSignalStore.`);
+      return t[e];
     }
-    if (typeof t == "function") {
-      const a = t(e);
-      return a instanceof c ? a : Array.isArray(a) ? l(() => t(e).map((n) => n.value)) : l(() => {
-        const i = {}, n = t(e);
-        for (const S in n)
-          i[S] = n[S].value;
-        return i;
+    if (typeof e == "function") {
+      const n = e(t);
+      if (n instanceof h || !s)
+        return n;
+      if (Array.isArray(n)) {
+        let u = null, o = null;
+        return p(() => {
+          const c = e(t).map((v) => v.value);
+          return x(u, c) || (u = c, o = [...c]), o;
+        });
+      }
+      let g = null, i = null;
+      return p(() => {
+        const u = e(t), o = {};
+        for (const f in u)
+          o[f] = u[f].value;
+        return E(g, o) || (g = o, i = { ...o }), i;
       });
     }
     throw new Error("useStore expects either a string key or a selector function");
-  }, [t]), o = f(r);
-  return typeof t == "string" ? [o, r.set] : o;
-}, x = (e) => {
-  if (typeof e != "object" || e === null)
+  }, [e, s]);
+  if (!s && typeof e == "function") {
+    const n = e(t);
+    if (!(n instanceof h))
+      return n;
+  }
+  const S = m(a);
+  return typeof e == "string" ? [S, a.set] : S;
+}, D = (t) => {
+  if (typeof t != "object" || t === null)
     throw new Error("createSignalStore expects an object as initialStates");
-  for (const r in e)
-    s.setStoreState(r, e[r]);
-  const t = s.getStore();
+  for (const r in t)
+    l.setStoreState(r, t[r]);
+  const e = l.getStore();
   return {
-    store: t,
-    useStore: w(t)
+    store: e,
+    useStore: V(e)
   };
-}, E = (e, t) => {
-  const r = g(() => p(e, t), [
-    e,
-    t
-  ]), o = f(r);
-  return typeof e == "string" ? [o, r.set] : o;
+}, G = (t, e) => {
+  const r = w(() => y(t, e), [
+    t,
+    e
+  ]), s = m(r);
+  return typeof t == "string" ? [s, r.set] : s;
 };
 export {
-  u as G,
-  x as c,
-  s as g,
-  E as u
+  b as G,
+  D as c,
+  l as g,
+  G as u
 };

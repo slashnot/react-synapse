@@ -599,5 +599,214 @@ describe('useStore from createSignalStore', () => {
         expect(result.current).toEqual({ a: 10, b: 20, c: 30 })
       })
     })
+
+    describe('unwrap option', () => {
+      it('should return raw signals when unwrap is false for array selector', () => {
+        const { store, useStore } = createSignalStore({
+          user: { name: 'John', age: 25 },
+          theme: 'dark',
+          counter: 42
+        })
+
+        // With unwrap: false, should return raw signals
+        const { result } = renderHook(() => useStore(
+          s => [s.user, s.theme, s.counter],
+          { unwrap: false }
+        ))
+
+        // Should return array of signals, not unwrapped values
+        expect(Array.isArray(result.current)).toBe(true)
+        expect(result.current.length).toBe(3)
+        // Each item should be a signal with .value
+        expect(result.current[0].value).toEqual({ name: 'John', age: 25 })
+        expect(result.current[1].value).toBe('dark')
+        expect(result.current[2].value).toBe(42)
+      })
+
+      it('should return raw signals when unwrap is false for object selector', () => {
+        const { store, useStore } = createSignalStore({
+          user: { name: 'John', age: 25 },
+          theme: 'dark'
+        })
+
+        // With unwrap: false, should return raw signals
+        const { result } = renderHook(() => useStore(
+          s => ({ currentUser: s.user, currentTheme: s.theme }),
+          { unwrap: false }
+        ))
+
+        // Should return object of signals, not unwrapped values
+        expect(result.current.currentUser.value).toEqual({ name: 'John', age: 25 })
+        expect(result.current.currentTheme.value).toBe('dark')
+      })
+
+      it('should allow fine-grained reactivity with unwrap: false', () => {
+        const { store, useStore } = createSignalStore({
+          user: { name: 'John', age: 25 },
+          theme: 'dark'
+        })
+
+        // With unwrap: false, signals are returned directly
+        const { result } = renderHook(() => useStore(
+          s => ({ user: s.user, theme: s.theme }),
+          { unwrap: false }
+        ))
+
+        // Access .value on each signal
+        const initialUserValue = result.current.user.value
+        expect(initialUserValue).toEqual({ name: 'John', age: 25 })
+
+        // Update one signal
+        act(() => {
+          store.user.set({ name: 'Jane', age: 30 })
+        })
+
+        // The signal itself should still be accessible
+        expect(result.current.user.value).toEqual({ name: 'Jane', age: 30 })
+        expect(result.current.theme.value).toBe('dark')
+      })
+
+      it('should default to unwrap: true when option not provided', () => {
+        const { store, useStore } = createSignalStore({
+          user: { name: 'John', age: 25 },
+          theme: 'dark'
+        })
+
+        // Without options, should unwrap by default
+        const { result } = renderHook(() => useStore(
+          s => ({ currentUser: s.user, currentTheme: s.theme })
+        ))
+
+        // Should return unwrapped values, not signals
+        expect(result.current.currentUser).toEqual({ name: 'John', age: 25 })
+        expect(result.current.currentTheme).toBe('dark')
+        // Should not have .value property (already unwrapped)
+        expect(result.current.currentUser.value).toBeUndefined()
+      })
+
+      it('should behave same as default when unwrap: true is explicit', () => {
+        const { store, useStore } = createSignalStore({
+          user: { name: 'John', age: 25 },
+          theme: 'dark'
+        })
+
+        const { result: defaultResult } = renderHook(() => useStore(
+          s => ({ currentUser: s.user, currentTheme: s.theme })
+        ))
+
+        const { result: explicitResult } = renderHook(() => useStore(
+          s => ({ currentUser: s.user, currentTheme: s.theme }),
+          { unwrap: true }
+        ))
+
+        expect(defaultResult.current).toEqual(explicitResult.current)
+      })
+    })
+
+    describe('memoization', () => {
+      it('should return same values for array when rerendered without changes', () => {
+        const { store, useStore } = createSignalStore({
+          itemA: 'A',
+          itemB: 'B'
+        })
+
+        const { result, rerender } = renderHook(() => useStore(s => [s.itemA, s.itemB]))
+
+        const firstResult = result.current
+        expect(firstResult).toEqual(['A', 'B'])
+
+        // Rerender without any store changes
+        rerender()
+
+        // Values should be the same (deep equality)
+        expect(result.current).toEqual(firstResult)
+      })
+
+      it('should return same values for object when rerendered without changes', () => {
+        const { store, useStore } = createSignalStore({
+          first: 1,
+          second: 2
+        })
+
+        const { result, rerender } = renderHook(() => useStore(s => ({
+          a: s.first,
+          b: s.second
+        })))
+
+        const firstResult = result.current
+        expect(firstResult).toEqual({ a: 1, b: 2 })
+
+        // Rerender without any store changes
+        rerender()
+
+        // Values should be the same (deep equality)
+        expect(result.current).toEqual(firstResult)
+      })
+
+      it('should create new reference for array only when values actually change', () => {
+        const { store, useStore } = createSignalStore({
+          itemA: 'A',
+          itemB: 'B'
+        })
+
+        const { result } = renderHook(() => useStore(s => [s.itemA, s.itemB]))
+
+        const firstResult = result.current
+        expect(firstResult).toEqual(['A', 'B'])
+
+        // Update a value
+        act(() => {
+          store.itemA.set('A1')
+        })
+
+        // Reference should be different now
+        expect(result.current).not.toBe(firstResult)
+        expect(result.current).toEqual(['A1', 'B'])
+
+        const secondResult = result.current
+
+        // Update to same value should still create new reference (value changed)
+        act(() => {
+          store.itemA.set('A1') // Same value
+        })
+
+        // Reference should be the same since value didn't actually change
+        expect(result.current).toBe(secondResult)
+      })
+
+      it('should create new reference for object only when values actually change', () => {
+        const { store, useStore } = createSignalStore({
+          first: 1,
+          second: 2
+        })
+
+        const { result } = renderHook(() => useStore(s => ({
+          a: s.first,
+          b: s.second
+        })))
+
+        const firstResult = result.current
+        expect(firstResult).toEqual({ a: 1, b: 2 })
+
+        // Update a value
+        act(() => {
+          store.first.set(10)
+        })
+
+        // Reference should be different now
+        expect(result.current).not.toBe(firstResult)
+        expect(result.current).toEqual({ a: 10, b: 2 })
+
+        const secondResult = result.current
+
+        // Update to same value
+        act(() => {
+          store.first.set(10) // Same value
+        })
+
+        // Reference should be the same since value didn't actually change
+        expect(result.current).toBe(secondResult)
+      })
+    })
   })
 })
