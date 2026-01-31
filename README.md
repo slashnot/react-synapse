@@ -2,6 +2,19 @@
 
 A lightweight React library that brings the power of [Preact Signals](https://preactjs.com/guide/v10/signals/) to React applications with enhanced features and an intuitive API. Enjoy fine-grained reactivity with immutable state updates powered by [Mutative](https://github.com/unadlib/mutative).
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Core Concepts](#core-concepts)
+- [API Reference](#api-reference)
+- [Usage Examples](#usage-examples)
+- [TypeScript Guide](#typescript-guide)
+- [Best Practices](#best-practices)
+- [Comparison](#comparison)
+- [How It Works](#how-it-works)
+
 ## Features
 
 - 🎯 **Fine-grained Reactivity** - Leverage Preact Signals for optimal performance
@@ -24,9 +37,25 @@ or with pnpm:
 pnpm add react-synapse
 ```
 
+or with yarn:
+
+```bash
+yarn add react-synapse
+```
+
+### Peer Dependencies
+
+react-synapse requires React 18+ or React 19+:
+
+```bash
+npm install react react-dom
+```
+
 ## Quick Start
 
-```javascript
+### Basic Counter Example
+
+```jsx
 import { useReactive } from 'react-synapse';
 
 function Counter() {
@@ -41,133 +70,133 @@ function Counter() {
 }
 ```
 
-## Why Signals? Benefits Over Traditional State Management
+### Global Store Example
 
-### 🚀 Simplicity
+```jsx
+// store.js
+import { createSignalStore } from 'react-synapse';
 
-Traditional state management libraries like Redux, Zustand, or MobX require significant boilerplate:
-- Redux: Actions, reducers, action creators, middleware, selectors
-- Context API: Provider wrappers, consumer hooks, memoization
-
-With `react-synapse`, you get a simple, intuitive API:
-
-```javascript
-// That's it! No providers, no reducers, no actions
-const { store, useStore } = createSignalStore({
+export const { store, useStore } = createSignalStore({
   user: { name: 'John', age: 30 },
-  theme: 'light'
-})
-
-// In any component - just use it
-const [user, setUser] = useStore('user')
+  theme: 'light',
+  counter: 0
+});
 ```
 
-### ⚡ Reduced Re-renders
+```jsx
+// Counter.jsx
+import { useStore } from './store';
 
-**Traditional Context/Redux approach:**
-```javascript
-// ❌ All components consuming the context re-render
-// even when only 'theme' changes
-const { user, theme, settings } = useContext(AppContext)
-```
-
-**Signal-based approach:**
-```javascript
-// ✅ Only components using 'theme' re-render when theme changes
-const [theme, setTheme] = useStore('theme')
-
-// This component won't re-render when theme changes!
-const [user, setUser] = useStore('user')
-```
-
-### 📊 Performance Comparison
-
-| Feature | Redux | Context API | Zustand | react-synapse |
-|---------|-------|-------------|---------|------------------|
-| Boilerplate | High | Medium | Low | **Minimal** |
-| Re-render Scope | Store-wide | Context-wide | Selector-based | **Signal-level** |
-| Bundle Size | ~7kb | Built-in | ~1.5kb | **~3kb** |
-| Learning Curve | Steep | Low | Low | **Minimal** |
-| TypeScript DX | Good | Manual | Good | **Excellent** |
-| Immutable Updates | Manual/Toolkit | Manual | Manual | **Built-in** |
-
-### 🎯 Fine-grained Reactivity
-
-Signals track exactly which components depend on which values. This means:
-
-1. **No selector functions needed** - Unlike Redux where you write selectors to prevent unnecessary renders
-2. **No `useMemo` or `useCallback` optimization** - Signals automatically optimize updates
-3. **No Provider wrappers** - State is truly global without wrapping your app
-
-### 💡 Real-world Example
-
-**Before (Redux Toolkit):**
-```javascript
-// store.js
-const userSlice = createSlice({
-  name: 'user',
-  initialState: { name: '', age: 0 },
-  reducers: {
-    setName: (state, action) => { state.name = action.payload },
-    setAge: (state, action) => { state.age = action.payload },
-  }
-})
-export const { setName, setAge } = userSlice.actions
-
-// Component.jsx
-import { useSelector, useDispatch } from 'react-redux'
-import { setName } from './store'
-
-function UserForm() {
-  const name = useSelector(state => state.user.name)
-  const dispatch = useDispatch()
+function Counter() {
+  const [count, setCount] = useStore('counter');
   
-  return <input value={name} onChange={e => dispatch(setName(e.target.value))} />
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      Count: {count}
+    </button>
+  );
 }
 ```
 
-**After (react-synapse):**
-```javascript
-// store.js
-export const { useStore } = createSignalStore({
-  user: { name: '', age: 0 }
-})
+```jsx
+// UserProfile.jsx
+import { useStore } from './store';
 
-// Component.jsx
-import { useStore } from './store'
-
-function UserForm() {
-  const [user, setUser] = useStore('user')
+function UserProfile() {
+  const [user, setUser] = useStore('user');
+  const theme = useStore(s => s.theme);
   
-  return <input 
-    value={user.name} 
-    onChange={e => setUser(draft => { draft.name = e.target.value })} 
-  />
+  return (
+    <div className={theme}>
+      <h1>Hello, {user.name}!</h1>
+      <button onClick={() => setUser(draft => { draft.age += 1; })}>
+        Birthday!
+      </button>
+    </div>
+  );
 }
 ```
 
----
+## Core Concepts
+
+### Signals and Fine-Grained Reactivity
+
+Signals are the foundation of react-synapse's reactivity system. Unlike traditional React state where components re-render when any state changes, signals allow components to subscribe to only the specific values they need.
+
+```jsx
+// With useState - entire component re-renders
+const [user, setUser] = useState({ name: 'John', age: 30 });
+
+// With signals - component only re-renders when accessed values change
+const [user, setUser] = useStore('user');
+```
+
+**Key benefits:**
+- No unnecessary re-renders
+- Automatic dependency tracking
+- No need for `useMemo` or `useCallback`
+
+### Global Store Pattern
+
+react-synapse uses a global singleton store where all signals are stored. This eliminates the need for context providers or prop drilling.
+
+```jsx
+// Create once, use everywhere
+const { store, useStore } = createSignalStore({
+  user: null,
+  settings: { theme: 'light' },
+  notifications: []
+});
+
+// Access in any component without providers
+function AnyComponent() {
+  const [user, setUser] = useStore('user');
+  // ...
+}
+```
+
+### Immutable Updates with Mutative
+
+react-synapse uses [Mutative](https://github.com/unadlib/mutative) for immutable state updates. This gives you the convenience of mutable syntax with the safety of immutable updates.
+
+```jsx
+// Direct value update
+setUser({ name: 'Jane', age: 25 });
+
+// Draft mutation (Immer-style)
+setUser(draft => {
+  draft.name = 'Jane';
+  draft.age += 1;
+});
+
+// Functional update
+setUser(current => ({ ...current, age: current.age + 1 }));
+```
 
 ## API Reference
 
 ### `createSignalStore(initialStates)`
 
-Creates a typed global store with multiple signal-based state entries. Returns a `store` object and a typed `useStore` hook for accessing state with full TypeScript autocompletion.
+Creates a typed global store with multiple signal-based state entries. Returns a `store` object and a typed `useStore` hook.
 
 **Parameters:**
-- `initialStates` - An object containing initial values for each store entry
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `initialStates` | `Object` | An object containing initial values for each store entry |
 
 **Returns:**
-- `{ store, useStore }` - An object containing:
-  - `store` - The raw store object with all signals
-  - `useStore` - A typed React hook for accessing store values
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `store` | `Object` | The raw store object with all signals |
+| `useStore` | `Function` | A typed React hook for accessing store values |
 
 **Example:**
 
 ```typescript
 import { createSignalStore } from 'react-synapse';
 
-// Create your store with initial state
 const { store, useStore } = createSignalStore({
   user: { 
     username: 'JohnDoe', 
@@ -178,51 +207,30 @@ const { store, useStore } = createSignalStore({
   todos: [] as { id: number; text: string; done: boolean }[]
 });
 
-// Export useStore for use in components
 export { useStore };
 ```
 
-### `useStore` (from createSignalStore)
+### `useStore` Hook
 
-A typed React hook returned from `createSignalStore` that provides access to store values with full TypeScript autocompletion. Supports two access patterns:
+A typed React hook returned from `createSignalStore`. Supports multiple access patterns.
 
 #### Pattern 1: String Key (returns `[value, setter]`)
 
-**Parameters:**
-- `key` - The string key of the store entry (typed based on initial state)
-
-**Returns:**
-- `[value, setter]` - A tuple containing:
-  - `value` - The current state value (fully typed)
-  - `setter` - A function to update the value (supports direct values or draft mutations)
-
-**Example:**
+Access a store value by its key. Returns a tuple with the current value and a setter function.
 
 ```tsx
-import { useStore } from './store';
-
 function UserProfile() {
-  // Full autocompletion! user is typed as { username: string, age: number, preferences: {...} }
   const [user, setUser] = useStore('user');
   
-  // TypeScript knows all the properties
+  // TypeScript knows all properties
   console.log(user.username);  // ✓ autocomplete works
   console.log(user.age);       // ✓ autocomplete works
   
   const updateAge = () => {
-    // Immer-style draft mutation with full typing
+    // Draft mutation with full typing
     setUser(draft => {
-      draft.age += 1;                        // ✓ autocomplete works
-      draft.preferences.theme = 'light';     // ✓ autocomplete works
-    });
-  };
-  
-  // Or direct value update
-  const resetUser = () => {
-    setUser({
-      username: 'Guest',
-      age: 0,
-      preferences: { theme: 'light', notifications: false }
+      draft.age += 1;
+      draft.preferences.theme = 'light';
     });
   };
   
@@ -238,55 +246,23 @@ function UserProfile() {
 
 #### Pattern 2: Function Selector (returns value only)
 
-**Parameters:**
-- `selector` - A function that receives the typed store and returns a signal, array of signals, or object of signals
+Use a selector function for read-only access. The selector receives the typed store and returns signals.
 
-**Returns:**
-- `value` - The current value(s) of the selected signal(s) (fully typed)
-
-This pattern is useful when you only need to read a value without updating it, or when you want a more functional style. The selector supports three return types:
-
-##### Selector Returns a Signal Directly
-
-When your selector returns a single Signal, it's used directly for maximum efficiency:
+**Single Signal:**
 
 ```tsx
-import { useStore } from './store';
-
 function ThemeDisplay() {
-  // Selector returns a Signal directly - used as-is
   const theme = useStore(s => s.theme);
-  
-  // theme is typed as 'light' | 'dark' (or string based on your store)
   return <div className={theme}>Current theme: {theme}</div>;
-}
-
-function UserStats() {
-  // Access a single signal directly
-  const user = useStore(s => s.user);
-  
-  // user is typed based on your store definition
-  return (
-    <div>
-      <p>Name: {user.username}</p>
-      <p>Age: {user.age}</p>
-    </div>
-  );
 }
 ```
 
-##### Selector Returns an Array of Signals
-
-When your selector returns an array of Signals, they are automatically wrapped in a `computed` to make them reactive. The hook returns an array of unwrapped values:
+**Array of Signals:**
 
 ```tsx
-import { useStore } from './store';
-
-function MultiValueDisplay() {
-  // Selector returns an array of Signals - wrapped in computed
+function Dashboard() {
   const [user, theme, counter] = useStore(s => [s.user, s.theme, s.counter]);
   
-  // Each value is unwrapped and reactive
   return (
     <div className={theme}>
       <p>User: {user.name}</p>
@@ -296,21 +272,15 @@ function MultiValueDisplay() {
 }
 ```
 
-##### Selector Returns a Plain Object of Signals
-
-When your selector returns a plain object containing Signals, they are automatically wrapped in a `computed` to make them reactive. The hook returns an object with unwrapped values:
+**Object of Signals:**
 
 ```tsx
-import { useStore } from './store';
-
 function DashboardStats() {
-  // Selector returns an object of Signals - wrapped in computed
   const { currentUser, currentTheme } = useStore(s => ({
     currentUser: s.user,
     currentTheme: s.theme
   }));
   
-  // Values are unwrapped and available with your custom keys
   return (
     <div className={currentTheme}>
       <h1>Welcome, {currentUser.name}!</h1>
@@ -319,95 +289,42 @@ function DashboardStats() {
 }
 ```
 
-##### Re-render Behavior with Function Selectors
+> ⚠️ **Note:** When using arrays or objects, the component re-renders when **any** of the selected signals change.
 
-> ⚠️ **Important**: When using the functional approach with arrays or objects, **any change to any of the returned state properties or array elements will trigger a re-render** of the component. This is because all the selected signals are combined into a single computed signal.
+#### Pattern 3: Options with `unwrap: false`
 
-For example:
-
-```tsx
-// This component re-renders when EITHER user OR theme OR counter changes
-const [user, theme, counter] = useStore(s => [s.user, s.theme, s.counter]);
-
-// This component re-renders when EITHER currentUser OR currentTheme changes
-const { currentUser, currentTheme } = useStore(s => ({
-  currentUser: s.user,
-  currentTheme: s.theme
-}));
-
-// For fine-grained control, use separate useStore calls:
-const user = useStore(s => s.user);     // Only re-renders on user changes
-const theme = useStore(s => s.theme);   // Only re-renders on theme changes
-```
-
-#### Combining Both Patterns
-
-You can use both patterns in the same component:
+Get raw signals for fine-grained control:
 
 ```tsx
-import { useStore } from './store';
-
-function Dashboard() {
-  // String key pattern when you need to update
-  const [settings, setSettings] = useStore('settings');
-  
-  // Function selector pattern for read-only values
-  const theme = useStore(s => s.theme);
-  const notifications = useStore(s => s.notifications);
-  
-  return (
-    <div className={theme}>
-      <h2>Notifications ({notifications.length})</h2>
-      <button onClick={() => setSettings(draft => {
-        draft.soundEnabled = !draft.soundEnabled;
-      })}>
-        Toggle Sound: {settings.soundEnabled ? 'ON' : 'OFF'}
-      </button>
-    </div>
+function FineGrainedComponent() {
+  const { user, theme } = useStore(
+    s => ({ user: s.user, theme: s.theme }),
+    { unwrap: false }
   );
-}
-```
-
-### `useSignalStore(id, initialState)` (Legacy/Generic)
-
-A generic React hook for managing global state. For better TypeScript support, prefer using `useStore` from `createSignalStore`.
-
-**Parameters:**
-- `id` - A string identifier for the store entry
-- `initialState` - The initial value (used only if the store entry doesn't exist)
-
-**Returns:**
-- `[value, setter]` - A tuple with current value and setter function
-
-**Example:**
-
-```javascript
-import { useSignalStore } from 'react-synapse';
-
-function Counter() {
-  const [count, setCount] = useSignalStore('globalCounter', 0);
   
-  return (
-    <button onClick={() => setCount(count + 1)}>
-      Count: {count}
-    </button>
-  );
+  // Access .value directly for fine-grained control
+  console.log(user.value.name);
+  console.log(theme.value);
+  
+  return null;
 }
 ```
 
 ### `useReactive(initialState)`
 
-A React hook that creates a reactive state with Preact Signals under the hood. Similar to `useState`, but with enhanced features.
+Creates a reactive local state (similar to `useState` but with signals).
 
 **Parameters:**
-- `initialState` - The initial value of the state
 
-**Returns:**
-- `[state, setState]` - A tuple containing the current state and a setter function
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `initialState` | `any` | The initial value of the state |
+
+**Returns:** `[state, setState]` - A tuple with current state and setter
 
 **Example:**
 
-```javascript
+```jsx
 import { useReactive } from 'react-synapse';
 
 function TodoList() {
@@ -416,17 +333,9 @@ function TodoList() {
   ]);
 
   const toggleTodo = (id) => {
-    // Immer-style draft mutation
     setTodos((draft) => {
       const todo = draft.find(t => t.id === id);
       if (todo) todo.completed = !todo.completed;
-    });
-  };
-
-  const addTodo = (text) => {
-    // Direct value update
-    setTodos((draft) => {
-      draft.push({ id: Date.now(), text, completed: false });
     });
   };
 
@@ -438,7 +347,6 @@ function TodoList() {
           {todo.text}
         </div>
       ))}
-      <button onClick={() => addTodo('New Todo')}>Add Todo</button>
     </div>
   );
 }
@@ -446,17 +354,19 @@ function TodoList() {
 
 ### `useReactiveSignal($signal)`
 
-A React hook that subscribes to an existing Preact Signal and returns its current value. This is useful for sharing state across components.
+Subscribes to an existing Preact Signal and returns its current value.
 
 **Parameters:**
-- `$signal` - A Preact Signal instance
 
-**Returns:**
-- `state` - The current value of the signal
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `$signal` | `Signal` | A Preact Signal instance |
+
+**Returns:** The current value of the signal
 
 **Example:**
 
-```javascript
+```jsx
 import { createSignal, useReactiveSignal } from 'react-synapse';
 
 // Create a global signal
@@ -474,26 +384,19 @@ function IncrementButton() {
     </button>
   );
 }
-
-function App() {
-  return (
-    <>
-      <DisplayCounter />
-      <IncrementButton />
-    </>
-  );
-}
 ```
 
 ### `createSignal(initialValue)`
 
-Creates a new Preact Signal with an enhanced API that includes an Immer-style setter method.
+Creates a new Preact Signal with an enhanced setter API.
 
 **Parameters:**
-- `initialValue` - The initial value of the signal
 
-**Returns:**
-- `$signal` - A Preact Signal with an additional `.set()` method
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `initialValue` | `any` | The initial value of the signal |
+
+**Returns:** A Signal with `.set()` method
 
 **Example:**
 
@@ -502,132 +405,56 @@ import { createSignal } from 'react-synapse';
 
 const $user = createSignal({
   name: 'John',
-  age: 30,
-  address: { city: 'New York' }
+  age: 30
 });
 
-// Immer-style mutation
+// Draft mutation
 $user.set((draft) => {
   draft.age = 31;
-  draft.address.city = 'Los Angeles';
 });
 
-// Or direct value update
-$user.set({ name: 'Jane', age: 25, address: { city: 'Chicago' } });
-
-// Or function returning new value
-$user.set((current) => ({ ...current, age: current.age + 1 }));
+// Direct value
+$user.set({ name: 'Jane', age: 25 });
 ```
 
-### Re-exported from Preact Signals
+### `signal(value)`
 
-The library also re-exports core Preact Signals functionality:
+Creates a standard Preact Signal (re-exported from `@preact/signals-core`).
 
 ```javascript
-import { signal, effect, computed } from 'react-synapse';
+import { signal } from 'react-synapse';
+
+const count = signal(0);
+
+// Access value
+console.log(count.value);
+
+// Update value
+count.value = 5;
 ```
 
-- `signal(initialValue)` - Create a standard Preact Signal
-- `effect(fn)` - Create an effect that runs when signals change
-- `computed(fn)` - Create a derived signal that automatically updates when its dependencies change
+### `computed(fn)`
 
-## Advanced Usage
+Creates a derived signal that automatically updates when its dependencies change.
 
-### Complete Store Example
+```javascript
+import { createSignal, computed, useReactiveSignal } from 'react-synapse';
 
-Here's a full example of setting up a typed global store:
+const $firstName = createSignal('John');
+const $lastName = createSignal('Doe');
 
-```typescript
-// store.ts
-import { createSignalStore } from 'react-synapse';
+const $fullName = computed(() => `${$firstName.value} ${$lastName.value}`);
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-}
-
-interface AppState {
-  user: User | null;
-  theme: 'light' | 'dark';
-  notifications: string[];
-  settings: {
-    soundEnabled: boolean;
-    language: string;
-  };
-}
-
-const initialState: AppState = {
-  user: null,
-  theme: 'light',
-  notifications: [],
-  settings: {
-    soundEnabled: true,
-    language: 'en'
-  }
-};
-
-export const { store, useStore } = createSignalStore(initialState);
-```
-
-```tsx
-// Header.tsx
-import { useStore } from './store';
-
-function Header() {
-  const [theme, setTheme] = useStore('theme');
-  const [user] = useStore('user');
-  
-  return (
-    <header className={theme}>
-      <h1>Welcome, {user?.name ?? 'Guest'}</h1>
-      <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
-        Toggle Theme
-      </button>
-    </header>
-  );
+function Profile() {
+  const fullName = useReactiveSignal($fullName);
+  return <h1>{fullName}</h1>;
 }
 ```
 
-```tsx
-// Settings.tsx
-import { useStore } from './store';
+### `effect(fn)`
 
-function Settings() {
-  const [settings, setSettings] = useStore('settings');
-  
-  return (
-    <div>
-      <label>
-        <input
-          type="checkbox"
-          checked={settings.soundEnabled}
-          onChange={() => setSettings(draft => {
-            draft.soundEnabled = !draft.soundEnabled;
-          })}
-        />
-        Sound Enabled
-      </label>
-      <select 
-        value={settings.language}
-        onChange={e => setSettings(draft => {
-          draft.language = e.target.value;
-        })}
-      >
-        <option value="en">English</option>
-        <option value="es">Spanish</option>
-        <option value="fr">French</option>
-      </select>
-    </div>
-  );
-}
-```
+Creates an effect that runs when signals change.
 
-### Effects and Computed Values
-
-Use Preact's `effect` for side effects:
-
-**Example with effect:**
 ```javascript
 import { createSignal, effect } from 'react-synapse';
 
@@ -640,32 +467,858 @@ effect(() => {
 });
 ```
 
-Use Preact's `computed` for computed values:
+### `batch(fn)`
 
-**Example with computed:**
+Batches multiple signal updates into a single update cycle.
 
 ```javascript
-import { createSignal, computed, useReactiveSignal } from 'react-synapse';
+import { batch, createSignal } from 'react-synapse';
 
-const $firstName = createSignal('John');
-const $lastName = createSignal('Doe');
+const $a = createSignal(0);
+const $b = createSignal(0);
 
-// Computed signal: automatically updates when firstName or lastName changes
-const $fullName = computed(() => `${$firstName.value} ${$lastName.value}`);
+batch(() => {
+  $a.set(1);
+  $b.set(2);
+  // Only one update cycle
+});
+```
 
-function Profile() {
-  const fullName = useReactiveSignal($fullName);
-  return <h1>{fullName}</h1>;
+### `globalStore`
+
+The singleton GlobalStore instance. Useful for advanced use cases.
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `getStore()` | Get the raw store object |
+| `getStoreValues()` | Get all current values as a plain object |
+| `getStoreState(id)` | Get a specific signal by ID |
+| `setStoreState(key, value)` | Create a new signal |
+| `hasState(key)` | Check if a signal exists |
+| `clearStore()` | Clear all signals (useful for testing) |
+
+**Example:**
+
+```javascript
+import { globalStore } from 'react-synapse';
+
+// Check if state exists
+if (!globalStore.hasState('user')) {
+  globalStore.setStoreState('user', { name: 'Guest' });
 }
 
-// Update signals
-$firstName.set('Jane');
-// $fullName automatically recomputes to "Jane Doe"
+// Get all values
+const allValues = globalStore.getStoreValues();
+console.log(allValues); // { user: { name: 'Guest' }, ... }
 ```
+
+### `useSignalStore(id, initialState)` (Legacy)
+
+Generic hook for global state. Prefer `useStore` from `createSignalStore` for better TypeScript support.
+
+```javascript
+import { useSignalStore } from 'react-synapse';
+
+function Counter() {
+  const [count, setCount] = useSignalStore('globalCounter', 0);
+  
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      Count: {count}
+    </button>
+  );
+}
+```
+
+## Usage Examples
+
+### Example 1: Todo List with Mutations
+
+```jsx
+// store.js
+import { createSignalStore } from 'react-synapse';
+
+export const { useStore } = createSignalStore({
+  todos: [] as { id: number; text: string; completed: boolean }[],
+  filter: 'all' as 'all' | 'active' | 'completed'
+});
+```
+
+```jsx
+// TodoList.jsx
+import { useStore } from './store';
+
+function TodoList() {
+  const [todos, setTodos] = useStore('todos');
+  const [filter, setFilter] = useStore('filter');
+
+  const addTodo = (text) => {
+    setTodos(draft => {
+      draft.push({
+        id: Date.now(),
+        text,
+        completed: false
+      });
+    });
+  };
+
+  const toggleTodo = (id) => {
+    setTodos(draft => {
+      const todo = draft.find(t => t.id === id);
+      if (todo) todo.completed = !todo.completed;
+    });
+  };
+
+  const filteredTodos = todos.filter(todo => {
+    if (filter === 'active') return !todo.completed;
+    if (filter === 'completed') return todo.completed;
+    return true;
+  });
+
+  return (
+    <div>
+      <div>
+        <button onClick={() => setFilter('all')}>All</button>
+        <button onClick={() => setFilter('active')}>Active</button>
+        <button onClick={() => setFilter('completed')}>Completed</button>
+      </div>
+      <ul>
+        {filteredTodos.map(todo => (
+          <li
+            key={todo.id}
+            onClick={() => toggleTodo(todo.id)}
+            style={{ textDecoration: todo.completed ? 'line-through' : 'none' }}
+          >
+            {todo.text}
+          </li>
+        ))}
+      </ul>
+      <input
+        type="text"
+        placeholder="Add todo..."
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            addTodo(e.target.value);
+            e.target.value = '';
+          }
+        }}
+      />
+    </div>
+  );
+}
+```
+
+### Example 2: Complex Nested State Updates
+
+```jsx
+// store.js
+import { createSignalStore } from 'react-synapse';
+
+export const { useStore } = createSignalStore({
+  app: {
+    user: {
+      profile: {
+        name: 'John',
+        settings: {
+          notifications: {
+            email: true,
+            push: false,
+            sms: true
+          }
+        }
+      },
+      preferences: {
+        theme: 'light',
+        language: 'en'
+      }
+    },
+    cart: {
+      items: [] as { id: number; name: string; quantity: number }[],
+      total: 0
+    }
+  }
+});
+```
+
+```jsx
+// NotificationsSettings.jsx
+import { useStore } from './store';
+
+function NotificationsSettings() {
+  const [app, setApp] = useStore('app');
+  
+  const toggleNotification = (type) => {
+    setApp(draft => {
+      draft.user.profile.settings.notifications[type] = 
+        !draft.user.profile.settings.notifications[type];
+    });
+  };
+
+  const notifications = app.user.profile.settings.notifications;
+
+  return (
+    <div>
+      <h3>Notification Settings</h3>
+      <label>
+        <input
+          type="checkbox"
+          checked={notifications.email}
+          onChange={() => toggleNotification('email')}
+        />
+        Email Notifications
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={notifications.push}
+          onChange={() => toggleNotification('push')}
+        />
+        Push Notifications
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={notifications.sms}
+          onChange={() => toggleNotification('sms')}
+        />
+        SMS Notifications
+      </label>
+    </div>
+  );
+}
+```
+
+### Example 3: Selector Patterns for Derived State
+
+```jsx
+// store.js
+import { createSignalStore } from 'react-synapse';
+
+export const { store, useStore } = createSignalStore({
+  products: [] as { id: number; name: string; price: number; category: string }[],
+  selectedCategory: 'all'
+});
+```
+
+```jsx
+// ProductDashboard.jsx
+import { computed } from 'react-synapse';
+import { useStore } from './store';
+
+// Create computed signals outside components
+const $filteredProducts = computed(() => {
+  const products = store.products.value;
+  const category = store.selectedCategory.value;
+  
+  if (category === 'all') return products;
+  return products.filter(p => p.category === category);
+});
+
+const $totalPrice = computed(() => {
+  return $filteredProducts.value.reduce((sum, p) => sum + p.price, 0);
+});
+
+function ProductDashboard() {
+  // Use array selector for multiple values
+  const [products, selectedCategory] = useStore(s => [
+    s.products,
+    s.selectedCategory
+  ]);
+  
+  // Or use object selector
+  const { products: allProducts } = useStore(s => ({
+    products: s.products
+  }));
+
+  const categories = [...new Set(allProducts.map(p => p.category))];
+
+  return (
+    <div>
+      <select
+        value={selectedCategory}
+        onChange={(e) => {
+          const [, setCategory] = useStore('selectedCategory');
+          setCategory(e.target.value);
+        }}
+      >
+        <option value="all">All Categories</option>
+        {categories.map(cat => (
+          <option key={cat} value={cat}>{cat}</option>
+        ))}
+      </select>
+      
+      <ProductList />
+      <PriceSummary />
+    </div>
+  );
+}
+
+function ProductList() {
+  const filteredProducts = useReactiveSignal($filteredProducts);
+  
+  return (
+    <ul>
+      {filteredProducts.map(product => (
+        <li key={product.id}>
+          {product.name} - ${product.price}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PriceSummary() {
+  const total = useReactiveSignal($totalPrice);
+  
+  return <div>Total: ${total.toFixed(2)}</div>;
+}
+```
+
+### Example 4: Sharing State Between Components
+
+```jsx
+// store.js
+import { createSignalStore } from 'react-synapse';
+
+export const { store, useStore } = createSignalStore({
+  messages: [] as { id: number; text: string; sender: string }[],
+  currentUser: { name: 'Guest', id: null }
+});
+```
+
+```jsx
+// ChatInput.jsx
+import { useStore } from './store';
+
+function ChatInput() {
+  const [messages, setMessages] = useStore('messages');
+  const [currentUser] = useStore('currentUser');
+
+  const sendMessage = (text) => {
+    setMessages(draft => {
+      draft.push({
+        id: Date.now(),
+        text,
+        sender: currentUser.name
+      });
+    });
+  };
+
+  return (
+    <input
+      type="text"
+      placeholder="Type a message..."
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && e.target.value.trim()) {
+          sendMessage(e.target.value);
+          e.target.value = '';
+        }
+      }}
+    />
+  );
+}
+```
+
+```jsx
+// MessageList.jsx
+import { useStore } from './store';
+
+function MessageList() {
+  const [messages] = useStore('messages');
+  const [currentUser] = useStore('currentUser');
+
+  return (
+    <div className="message-list">
+      {messages.map(message => (
+        <div
+          key={message.id}
+          className={message.sender === currentUser.name ? 'own' : 'other'}
+        >
+          <strong>{message.sender}:</strong> {message.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+```jsx
+// App.jsx
+import { ChatInput } from './ChatInput';
+import { MessageList } from './MessageList';
+
+function App() {
+  return (
+    <div className="chat-app">
+      <MessageList />
+      <ChatInput />
+    </div>
+  );
+}
+```
+
+### Example 5: Effects and Computed Values
+
+```jsx
+// store.js
+import { createSignalStore } from 'react-synapse';
+
+export const { store, useStore } = createSignalStore({
+  user: { name: 'John', status: 'offline' },
+  notifications: [] as string[]
+});
+```
+
+```jsx
+// UserPresence.jsx
+import { effect, computed, useReactiveSignal } from 'react-synapse';
+import { store } from './store';
+
+// Computed: derived state
+const $statusMessage = computed(() => {
+  const user = store.user.value;
+  return `${user.name} is currently ${user.status}`;
+});
+
+// Effect: side effects
+effect(() => {
+  const status = store.user.value.status;
+  
+  if (status === 'online') {
+    console.log('User came online');
+    document.title = '🟢 Online';
+  } else {
+    console.log('User went offline');
+    document.title = '⚫ Offline';
+  }
+});
+
+// Effect with cleanup
+effect(() => {
+  const notificationCount = store.notifications.value.length;
+  
+  if (notificationCount > 0) {
+    const interval = setInterval(() => {
+      console.log(`You have ${notificationCount} unread notifications`);
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }
+});
+
+function StatusDisplay() {
+  const statusMessage = useReactiveSignal($statusMessage);
+  const [user, setUser] = useStore('user');
+
+  return (
+    <div>
+      <p>{statusMessage}</p>
+      <button onClick={() => 
+        setUser(draft => {
+          draft.status = draft.status === 'online' ? 'offline' : 'online';
+        })
+      }>
+        Toggle Status
+      </button>
+    </div>
+  );
+}
+```
+
+## TypeScript Guide
+
+### Basic Type Setup
+
+```typescript
+// types.ts
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface AppState {
+  user: User | null;
+  theme: 'light' | 'dark';
+  notifications: string[];
+  settings: {
+    soundEnabled: boolean;
+    language: string;
+  };
+}
+```
+
+```typescript
+// store.ts
+import { createSignalStore } from 'react-synapse';
+import type { AppState } from './types';
+
+const initialState: AppState = {
+  user: null,
+  theme: 'light',
+  notifications: [],
+  settings: {
+    soundEnabled: true,
+    language: 'en'
+  }
+};
+
+export const { store, useStore } = createSignalStore(initialState);
+
+// Export typed hooks for better DX
+export type AppStore = typeof store;
+```
+
+### Component Usage with Types
+
+```tsx
+// Header.tsx
+import { useStore } from './store';
+import type { User } from './types';
+
+function Header() {
+  const [theme, setTheme] = useStore('theme');
+  const [user] = useStore('user');
+  
+  // TypeScript knows the types:
+  // theme: 'light' | 'dark'
+  // user: User | null
+  
+  return (
+    <header className={theme}>
+      <h1>Welcome, {user?.name ?? 'Guest'}</h1>
+      <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+        Toggle Theme
+      </button>
+    </header>
+  );
+}
+```
+
+### Type Inference with Selectors
+
+```tsx
+// The selector pattern also maintains type safety
+function Dashboard() {
+  // Single signal - typed correctly
+  const theme = useStore(s => s.theme); // theme: 'light' | 'dark'
+  
+  // Array selector - each element typed
+  const [user, notifications] = useStore(s => [s.user, s.notifications]);
+  // user: User | null
+  // notifications: string[]
+  
+  // Object selector - properties typed
+  const { currentUser } = useStore(s => ({ currentUser: s.user }));
+  // currentUser: User | null
+  
+  return null;
+}
+```
+
+### Custom Type Helpers
+
+```typescript
+// utils.ts
+import type { SignalSetter } from 'react-synapse';
+
+// Helper for async actions
+export type AsyncSetter<T> = (
+  updater: T | ((draft: T) => T | void) | Promise<T>
+) => Promise<T>;
+
+// Helper for store slices
+export type StoreSlice<T, K extends keyof T> = {
+  value: T[K];
+  set: SignalSetter<T[K]>;
+};
+```
+
+## Best Practices
+
+### 1. Create Store at Application Level
+
+Define your store in a separate file and export the `useStore` hook:
+
+```typescript
+// store.ts
+import { createSignalStore } from 'react-synapse';
+
+export const { store, useStore } = createSignalStore({
+  // Your initial state
+});
+```
+
+### 2. Use String Keys for Write Access
+
+When you need to update state, use the string key pattern:
+
+```tsx
+// ✓ Good - provides setter
+const [user, setUser] = useStore('user');
+
+// ⚠️ For read-only, function selector is fine
+const user = useStore(s => s.user);
+```
+
+### 3. Split Large Objects
+
+Instead of one large object, split into logical pieces:
+
+```typescript
+// ✓ Good - granular updates
+export const { useStore } = createSignalStore({
+  userProfile: { /* ... */ },
+  userSettings: { /* ... */ },
+  userPreferences: { /* ... */ }
+});
+
+// ⚠️ Avoid - causes unnecessary re-rends
+export const { useStore } = createSignalStore({
+  user: {
+    profile: { /* ... */ },
+    settings: { /* ... */ },
+    preferences: { /* ... */ }
+  }
+});
+```
+
+### 4. Use Draft Mutations for Complex Updates
+
+Draft mutations are more readable and maintainable:
+
+```tsx
+// ✓ Good - clear intent
+setUser(draft => {
+  draft.profile.name = newName;
+  draft.settings.notifications.email = true;
+});
+
+// ⚠️ Verbose - harder to read
+setUser({
+  ...user,
+  profile: {
+    ...user.profile,
+    name: newName
+  },
+  settings: {
+    ...user.settings,
+    notifications: {
+      ...user.settings.notifications,
+      email: true
+    }
+  }
+});
+```
+
+### 5. Create Computed Values Outside Components
+
+Define computed signals at module level for better performance:
+
+```typescript
+// ✓ Good - computed once, shared
+const $filteredItems = computed(() => {
+  const items = store.items.value;
+  const filter = store.filter.value;
+  return items.filter(item => item.category === filter);
+});
+
+function ItemList() {
+  const items = useReactiveSignal($filteredItems);
+  // ...
+}
+```
+
+### 6. Use Effects for Side Effects
+
+Keep side effects in `effect` calls, not in components:
+
+```typescript
+// ✓ Good - clean separation of concerns
+effect(() => {
+  const user = store.user.value;
+  if (user) {
+    analytics.track('user_active', { id: user.id });
+  }
+});
+
+function Dashboard() {
+  const [user] = useStore('user');
+  // Component focuses on UI
+}
+```
+
+### 7. Clear Store in Tests
+
+Always clear the store between tests:
+
+```typescript
+import { globalStore } from 'react-synapse';
+
+beforeEach(() => {
+  globalStore.clearStore();
+});
+```
+
+### Patterns to Avoid
+
+```tsx
+// ❌ Don't: Accessing store values during render without hook
+function BadComponent() {
+  const value = store.someValue.value; // Won't be reactive!
+  return <div>{value}</div>;
+}
+
+// ✅ Do: Use the hook
+function GoodComponent() {
+  const value = useStore(s => s.someValue);
+  return <div>{value}</div>;
+}
+
+// ❌ Don't: Creating selectors that return new objects every time
+function BadComponent() {
+  // Creates new object every render - causes infinite loops
+  const data = useStore(s => ({ 
+    user: s.user.value,  // Accessing .value inside selector
+    theme: s.theme 
+  }));
+}
+
+// ✅ Do: Return signals directly
+function GoodComponent() {
+  const data = useStore(s => ({ 
+    user: s.user,  // Return signal, not .value
+    theme: s.theme 
+  }));
+}
+
+// ❌ Don't: Using array/object selectors when you only need one value
+function BadComponent() {
+  // Re-renders when ANY of these change
+  const [user, theme, settings] = useStore(s => [s.user, s.theme, s.settings]);
+  return <div>{user.name}</div>; // Only uses user!
+}
+
+// ✅ Do: Subscribe only to what you need
+function GoodComponent() {
+  const user = useStore(s => s.user); // Only re-renders on user changes
+  return <div>{user.name}</div>;
+}
+```
+
+## Comparison
+
+### Comparison with Other State Managers
+
+| Feature | Redux | Context API | Zustand | Jotai | react-synapse |
+|---------|-------|-------------|---------|-------|---------------|
+| Boilerplate | High | Medium | Low | Low | **Minimal** |
+| Re-render Scope | Store-wide | Context-wide | Selector-based | Atom-level | **Signal-level** |
+| Bundle Size | ~7kb | Built-in | ~1.5kb | ~1.5kb | **~3kb** |
+| Learning Curve | Steep | Low | Low | Low | **Minimal** |
+| TypeScript DX | Good | Manual | Good | Good | **Excellent** |
+| Immutable Updates | Manual/Toolkit | Manual | Manual | Manual | **Built-in** |
+| DevTools | Excellent | None | Good | Good | Basic |
+| Middleware | Extensive | None | Limited | None | None |
+
+### Code Comparison
+
+**Redux Toolkit:**
+
+```typescript
+// store.ts
+const userSlice = createSlice({
+  name: 'user',
+  initialState: { name: '', age: 0 },
+  reducers: {
+    setName: (state, action) => { state.name = action.payload },
+    setAge: (state, action) => { state.age = action.payload },
+  }
+});
+
+// Component.tsx
+import { useSelector, useDispatch } from 'react-redux';
+function UserForm() {
+  const name = useSelector(state => state.user.name);
+  const dispatch = useDispatch();
+  return <input value={name} onChange={e => dispatch(setName(e.target.value))} />;
+}
+```
+
+**react-synapse:**
+
+```typescript
+// store.ts
+export const { useStore } = createSignalStore({
+  user: { name: '', age: 0 }
+});
+
+// Component.tsx
+import { useStore } from './store';
+function UserForm() {
+  const [user, setUser] = useStore('user');
+  return <input 
+    value={user.name} 
+    onChange={e => setUser(draft => { draft.name = e.target.value })} 
+  />;
+}
+```
+
+### When to Use react-synapse
+
+✅ **Use react-synapse when:**
+- You want minimal boilerplate
+- Fine-grained reactivity is important
+- You need excellent TypeScript support
+- You prefer Immer-style mutations
+- You're building small to medium-sized apps
+
+⚠️ **Consider alternatives when:**
+- You need extensive devtools (Redux)
+- You need time-travel debugging (Redux)
+- You need middleware ecosystem (Redux)
+- You're building very large enterprise apps with complex state requirements
 
 ## How It Works
 
-`react-synapse` uses React's `useSyncExternalStore` hook to subscribe to Preact Signals, ensuring compatibility with React 18+ concurrent features. State updates are handled through [Mutative](https://github.com/unadlib/mutative), providing Immer-style immutable updates with better performance.
+react-synapse is built on top of three core technologies:
+
+1. **Preact Signals**: Provides the reactive primitive that tracks dependencies and triggers updates
+2. **Mutative**: Enables fast immutable updates using a proxy-based draft mechanism (10x faster than Immer)
+3. **React's useSyncExternalStore**: Ensures compatibility with React 18+ concurrent features
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      react-synapse                           │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │  useStore    │  │  useReactive │  │   Signals    │      │
+│  │  (Global)    │  │  (Local)     │  │  (computed)  │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+├─────────────────────────────────────────────────────────────┤
+│                   react-set-signal                           │
+│         (Preact Signals + Mutative integration)              │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────────┐              ┌──────────────────┐     │
+│  │ @preact/signals  │              │     Mutative     │     │
+│  │    - signal      │              │  - createDraft   │     │
+│  │    - computed    │              │  - immutable     │     │
+│  │    - effect      │              │    updates       │     │
+│  └──────────────────┘              └──────────────────┘     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### The Signal Flow
+
+1. **Creation**: `createSignalStore()` creates signals and stores them in the global `GlobalStore`
+2. **Subscription**: `useStore()` subscribes to specific signals using `useSyncExternalStore`
+3. **Update**: Calling a setter triggers Mutative to create an immutable update
+4. **Notification**: Preact Signals notifies all subscribers of the change
+5. **Re-render**: Only components reading the changed signal re-render
 
 ## Performance Benefits
 
@@ -679,6 +1332,21 @@ $firstName.set('Jane');
 
 Works in all modern browsers that support React 18+.
 
+## Module Exports
+
+react-synapse provides multiple entry points for tree-shaking:
+
+```javascript
+// Main export - everything
+import { useStore, createSignalStore, useReactive } from 'react-synapse';
+
+// Store-specific exports only
+import { useSignalStore, createSignalStore, globalStore } from 'react-synapse/store';
+
+// Signal primitives only
+import { useReactive, useReactiveSignal, createSignal, signal, computed, effect } from 'react-synapse/signals';
+```
+
 ## License
 
 ISC
@@ -691,4 +1359,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - [Preact Signals](https://github.com/preactjs/signals) - The underlying signal implementation
 - [Mutative](https://github.com/unadlib/mutative) - Fast immutable updates
+- [react-set-signal](https://github.com/slashnot/react-set-signal) - The wrapper library combining Preact Signals with Mutative
 - [React](https://react.dev) - The UI library this package is built for
