@@ -9,8 +9,20 @@ export type TypedGlobalStore<T extends Record<string, any>> = {
 
 /**
  * Setter function type for signal store values
+ * Accepts either a new value or a function that receives a draft and returns a value or void
  */
 export type SignalSetter<T> = (fnOrValue: T | ((draft: T) => T | void)) => T
+
+/**
+ * Return type for useStore hook when using string key pattern
+ * A tuple with additional convenience properties
+ */
+export type UseStoreResult<T> = [T, SignalSetter<T>] & {
+  /** The current signal value */
+  signal: T
+  /** The setter function for the signal */
+  setSignal: SignalSetter<T>
+}
 
 /**
  * Helper type to unwrap a single signal
@@ -53,15 +65,20 @@ export interface TypedUseStore<T extends Record<string, any>> {
   /**
    * Access a store value by key with full type inference
    * @param key - The key of the store entry
-   * @returns A tuple with [value, setter] where value is typed based on the store
+   * @returns A tuple with [value, setter] and additional convenience properties
    *
    * @example
    * ```tsx
    * const [user, setUser] = useStore('user')
    * // user is typed, setUser accepts typed value or draft function
+   * 
+   * // Or use convenience properties:
+   * const result = useStore('user')
+   * result.signal    // the current value
+   * result.setSignal // the setter function
    * ```
    */
-  <K extends keyof T & string>(key: K): [T[K], SignalSetter<T[K]>]
+  <K extends keyof T & string>(key: K): UseStoreResult<T[K]>
   
   /**
    * Access a store value using a selector function (with auto-unwrap)
@@ -103,8 +120,9 @@ export interface TypedUseStore<T extends Record<string, any>> {
 
 /**
  * Return type of createSignalStore with typed useStore hook
+ * Returns an array that can also be accessed as an object
  */
-export interface TypedSignalStore<T extends Record<string, any>> {
+export type TypedSignalStore<T extends Record<string, any>> = [TypedGlobalStore<T>, TypedUseStore<T>] & {
   /**
    * The raw store object containing all signals
    */
@@ -213,3 +231,5 @@ export function useSignalStore<T, R = any>(
   idOrFunction: string | ((store: GlobalStoreType) => R),
   initialState?: T
 ): [T, SignalSetter<T>] | UnwrapSignals<R>
+
+export default useSignalStore
