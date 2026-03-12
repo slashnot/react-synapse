@@ -187,16 +187,20 @@ Creates a typed global store with multiple signal-based state entries. Returns a
 
 **Returns:**
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `store` | `Object` | The raw store object with all signals |
-| `useStore` | `Function` | A typed React hook for accessing store values |
+The function returns an array that is also augmented with object properties, allowing both destructuring patterns:
+
+| Return Format | Description |
+|---------------|-------------|
+| `[store, useStore]` | Array format for positional destructuring |
+| `result.store` | The raw store object with all signals |
+| `result.useStore` | A typed React hook for accessing store values |
 
 **Example:**
 
 ```typescript
 import { createSignalStore } from 'react-synapse';
 
+// Named destructuring (recommended for clarity)
 const { store, useStore } = createSignalStore({
   user: { 
     username: 'JohnDoe', 
@@ -207,20 +211,58 @@ const { store, useStore } = createSignalStore({
   todos: [] as { id: number; text: string; done: boolean }[]
 });
 
+// Array destructuring (also valid)
+const [store, useStore] = createSignalStore({
+  user: { name: 'John' },
+  theme: 'light'
+});
+
+// Mixed access patterns
+const result = createSignalStore({ counter: 0 });
+const store = result.store;           // or result[0]
+const useStore = result.useStore;     // or result[1]
+
 export { useStore };
 ```
 
 ### `useStore` Hook
 
-A typed React hook returned from `createSignalStore`. Supports multiple access patterns.
+A typed React hook returned from `createSignalStore`. Supports multiple access patterns with different return formats.
 
-#### Pattern 1: String Key (returns `[value, setter]`)
+**Return Format Summary:**
 
-Access a store value by its key. Returns a tuple with the current value and a setter function.
+| Access Pattern | Return Type | Description |
+|----------------|-------------|-------------|
+| `useStore('key')` | `[value, setter]` | Array with `.signal` and `.setSignal` properties |
+| `useStore(s => s.key)` | `value` | Computed value directly (single signal) |
+| `useStore(s => [s.a, s.b])` | `[valueA, valueB]` | Array of computed values |
+| `useStore(s => ({ a: s.a }))` | `{ a: valueA }` | Object with computed values |
+
+#### Pattern 1: String Key (returns `[value, setter]` with named properties)
+
+Access a store value by its key. Returns a tuple with the current value and a setter function. The return value is an array that also has named properties for convenience.
+
+**Return Format:**
+
+| Return Format | Description |
+|---------------|-------------|
+| `[value, setter]` | Array format for positional destructuring |
+| `result.signal` | The current signal value (same as `result[0]`) |
+| `result.setSignal` | The setter function (same as `result[1]`) |
 
 ```tsx
 function UserProfile() {
+  // Array destructuring (common pattern)
   const [user, setUser] = useStore('user');
+  
+  // Named property access (also valid)
+  const userState = useStore('user');
+  const user = userState.signal;
+  const setUser = userState.setSignal;
+
+  // Or mixed destructuring
+  const [user, setUser] = useStore('user');
+  const { signal: user, setSignal: setUser } = useStore('user');
   
   // TypeScript knows all properties
   console.log(user.username);  // ✓ autocomplete works
@@ -244,9 +286,9 @@ function UserProfile() {
 }
 ```
 
-#### Pattern 2: Function Selector (returns value only)
+#### Pattern 2: Function Selector (returns computed value directly)
 
-Use a selector function for read-only access. The selector receives the typed store and returns signals.
+Use a selector function for read-only access. The selector receives the typed store and returns signals. **Note:** Unlike string keys, function selectors return the computed value directly, not a tuple.
 
 **Single Signal:**
 
