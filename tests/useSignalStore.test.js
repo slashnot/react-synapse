@@ -810,3 +810,90 @@ describe('useStore from createSignalStore', () => {
     })
   })
 })
+
+describe('Error scenarios', () => {
+  beforeEach(() => {
+    globalStore.clearStore()
+  })
+
+  describe('selector throws error', () => {
+    it('should throw error when selector function throws', () => {
+      const { useStore } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useStore(s => {
+          throw new Error('Selector error')
+        }))
+      }).toThrow('Selector error')
+    })
+
+    it('should throw error when selector accesses non-existent property deeply', () => {
+      const { useStore } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useStore(s => s.nonExistent.value))
+      }).toThrow()
+    })
+  })
+
+  describe('setter throws error', () => {
+    it('should handle setter that throws error gracefully', () => {
+      const { useStore } = createSignalStore({
+        counter: 0
+      })
+
+      const { result } = renderHook(() => useStore('counter'))
+
+      expect(result.current[0]).toBe(0)
+
+      // Setter with a function that throws
+      expect(() => {
+        act(() => {
+          const [, setCounter] = result.current
+          setCounter(() => {
+            throw new Error('Setter error')
+          })
+        })
+      }).toThrow('Setter error')
+
+      // Value should remain unchanged after error
+      expect(result.current[0]).toBe(0)
+    })
+  })
+
+  describe('corrupted store', () => {
+    it('should throw error when accessing non-existent store key with useStore', () => {
+      const { useStore } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useStore('nonExistent'))
+      }).toThrow('Store key "nonExistent" does not exist')
+    })
+
+    it('should throw error when useStore receives null', () => {
+      const { useStore } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useStore(null))
+      }).toThrow('useStore expects either a string key or a selector function')
+    })
+
+    it('should throw error when useStore receives undefined', () => {
+      const { useStore } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useStore(undefined))
+      }).toThrow('useStore expects either a string key or a selector function')
+    })
+  })
+})

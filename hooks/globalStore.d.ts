@@ -1,4 +1,4 @@
-import { ReactSetSignal } from '../utils/createSignal'
+import { ReactSetSignal } from 'react-set-signal'
 
 /**
  * Individual store state entry with optional ID

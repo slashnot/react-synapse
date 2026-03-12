@@ -1,5 +1,5 @@
-import { useMemo, useRef } from "react";
-import { Signal, useReactiveSignal, computed, setSignal } from "react-set-signal";
+import { useMemo, useRef, useEffect } from "react";
+import { Signal, useReactiveSignal, computed } from "react-set-signal";
 import { globalStore } from "./globalStore";
 
 /**
@@ -63,6 +63,19 @@ const createUseStoreHook = (store) => {
         const selectorRef = useRef(keyOrFunction);
         const memoRef = useRef({ prevValues: null, prevResult: null, isArray: null });
         const computedRef = useRef(null);
+
+        // Cleanup on unmount to prevent memory leaks
+        useEffect(() => {
+            return () => {
+                // Dispose of computed signal if it has a dispose method
+                if (computedRef.current && typeof computedRef.current.dispose === 'function') {
+                    computedRef.current.dispose();
+                }
+                // Clear refs to allow garbage collection
+                computedRef.current = null;
+                memoRef.current = { prevValues: null, prevResult: null, isArray: null };
+            };
+        }, []);
 
         // Update selector ref on each render (so computed always uses latest selector)
         selectorRef.current = keyOrFunction;
@@ -209,10 +222,34 @@ const createSignalStore = (initialStates) => {
  * @param {string|Function} idOrFunction - Either a string ID or a function that receives the store
  * @param {*} initialState - The initial state value (required for string ID pattern)
  * @returns {[*, Function]|*} For string ID: [state, setter]. For function: the state value.
+ * 
+ * WARNING: When using function selectors, avoid passing inline arrow functions as they
+ * create new references on each render, causing unnecessary signal recreation. Instead,
+ * define the selector function outside the component or use useMemo/useCallback to
+ * stabilize the reference:
+ * 
+ * @example
+ * // ❌ Bad: Inline function creates new reference each render
+ * const state = useSignalStore(store => store.user)
+ * 
+ * // ✅ Good: Stable function reference
+ * const selectUser = useCallback(store => store.user, [])
+ * const state = useSignalStore(selectUser)
+ * 
+ * // ✅ Good: Define outside component
+ * const selectUser = store => store.user
+ * function MyComponent() {
+ *   const state = useSignalStore(selectUser)
+ * }
  */
 const useSignalStore = (idOrFunction, initialState) => {
+    // Use stable dependency key to prevent unnecessary signal recreation
+    // For strings: use the string value itself (stable)
+    // For functions: use 'function' as key to avoid recreation on reference change
+    // This is a trade-off: inline functions won't cause recreation, but if you need
+    // to change the selector, define it outside the component and use a stable reference
     const $signal = useMemo(() => getStoreSignal(idOrFunction, initialState), [
-        idOrFunction,
+        typeof idOrFunction === 'string' ? idOrFunction : typeof idOrFunction,
         initialState
     ])
     const signal = useReactiveSignal($signal)
