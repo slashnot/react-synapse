@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Signal, useReactiveSignal, computed } from "react-set-signal";
+import { Signal, useReactiveSignal, computed, setSignal } from "react-set-signal";
 import { globalStore } from "./globalStore";
 
 /**
@@ -58,15 +58,15 @@ const createUseStoreHook = (store) => {
      */
     return (keyOrFunction, options = {}) => {
         const { unwrap = true } = options;
-        
+
         // Use refs to maintain stable references across renders
         const selectorRef = useRef(keyOrFunction);
         const memoRef = useRef({ prevValues: null, prevResult: null, isArray: null });
         const computedRef = useRef(null);
-        
+
         // Update selector ref on each render (so computed always uses latest selector)
         selectorRef.current = keyOrFunction;
-        
+
         const $signal = useMemo(() => {
             // String key pattern
             if (typeof keyOrFunction === 'string') {
@@ -92,14 +92,14 @@ const createUseStoreHook = (store) => {
                 // Track if result type is array for the memoization logic
                 const isArray = Array.isArray(result);
                 const memo = memoRef.current;
-                
+
                 // Reset memo if result type changed
                 if (memo.isArray !== isArray) {
                     memo.prevValues = null;
                     memo.prevResult = null;
                     memo.isArray = isArray;
                 }
-                
+
                 // Reuse existing computed if possible
                 if (computedRef.current) {
                     return computedRef.current;
@@ -109,15 +109,15 @@ const createUseStoreHook = (store) => {
                 const $computed = computed(() => {
                     const currentSelector = selectorRef.current;
                     const states = currentSelector(store);
-                    
+
                     if (isArray) {
                         const newValues = states.map(state => state.value);
-                        
+
                         // Shallow equality check - return same reference if unchanged
                         if (shallowArrayEqual(memo.prevValues, newValues)) {
                             return memo.prevResult;
                         }
-                        
+
                         memo.prevValues = newValues;
                         memo.prevResult = [...newValues];
                         return memo.prevResult;
@@ -126,24 +126,24 @@ const createUseStoreHook = (store) => {
                         for (const key in states) {
                             computedStates[key] = states[key].value;
                         }
-                        
+
                         // Shallow equality check - return same reference if unchanged
                         if (shallowObjectEqual(memo.prevValues, computedStates)) {
                             return memo.prevResult;
                         }
-                        
+
                         memo.prevValues = computedStates;
                         memo.prevResult = { ...computedStates };
                         return memo.prevResult;
                     }
                 });
-                
+
                 computedRef.current = $computed;
                 return $computed;
             }
 
             throw new Error('useStore expects either a string key or a selector function')
-        // Only depend on unwrap and whether it's a string/function (not the function reference itself)
+            // Only depend on unwrap and whether it's a string/function (not the function reference itself)
         }, [typeof keyOrFunction === 'string' ? keyOrFunction : 'function', unwrap])
 
         // When unwrap is false and result is array/object, return directly without useReactiveSignal
@@ -156,7 +156,7 @@ const createUseStoreHook = (store) => {
 
         const signal = useReactiveSignal($signal)
         if (typeof keyOrFunction === 'string') {
-            return [signal, $signal.set]
+            return Object.assign([signal, $signal.set], { signal, setSignal: $signal.set }) // Return tuple with additional properties for convenience
         }
         // Function selector pattern returns just the value
         return signal
@@ -193,12 +193,10 @@ const createSignalStore = (initialStates) => {
     }
 
     const store = globalStore.getStore()
+    const useStore = createUseStoreHook(store)
 
     // Return both the store and a typed useStore hook
-    return {
-        store,
-        useStore: createUseStoreHook(store)
-    }
+    return Object.assign([store, useStore], { store, useStore })
 }
 
 // -----------------------------
