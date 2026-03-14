@@ -811,6 +811,512 @@ describe('useStore from createSignalStore', () => {
   })
 })
 
+describe('createUseSelectorHook (useSelector)', () => {
+  beforeEach(() => {
+    globalStore.clearStore()
+  })
+
+  describe('basic usage', () => {
+    it('should select multiple signals and return their unwrapped values', () => {
+      const { useSelector } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light',
+        counter: 42
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        user: s.user,
+        theme: s.theme,
+        counter: s.counter
+      })))
+
+      expect(result.current).toEqual({
+        user: { name: 'John', age: 30 },
+        theme: 'light',
+        counter: 42
+      })
+    })
+
+    it('should select a subset of signals from the store', () => {
+      const { useSelector } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light',
+        notifications: [{ id: 1, text: 'Hello' }],
+        settings: { darkMode: true }
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        name: s.user,
+        mode: s.theme
+      })))
+
+      expect(result.current).toEqual({
+        name: { name: 'John', age: 30 },
+        mode: 'light'
+      })
+    })
+
+    it('should work with primitive values', () => {
+      const { useSelector } = createSignalStore({
+        count: 0,
+        message: 'hello',
+        isActive: true
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        count: s.count,
+        message: s.message,
+        isActive: s.isActive
+      })))
+
+      expect(result.current).toEqual({
+        count: 0,
+        message: 'hello',
+        isActive: true
+      })
+    })
+
+    it('should work with complex nested objects', () => {
+      const { useSelector } = createSignalStore({
+        config: {
+          api: { url: 'https://api.example.com', timeout: 5000 },
+          features: { darkMode: true, notifications: false }
+        }
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        config: s.config
+      })))
+
+      expect(result.current.config).toEqual({
+        api: { url: 'https://api.example.com', timeout: 5000 },
+        features: { darkMode: true, notifications: false }
+      })
+    })
+  })
+
+  describe('reactivity', () => {
+    it('should update when a selected signal changes', () => {
+      const { store, useSelector } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light'
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        user: s.user,
+        theme: s.theme
+      })))
+
+      expect(result.current).toEqual({
+        user: { name: 'John', age: 30 },
+        theme: 'light'
+      })
+
+      // Update user
+      act(() => {
+        store.user.set({ name: 'Jane', age: 25 })
+      })
+
+      expect(result.current).toEqual({
+        user: { name: 'Jane', age: 25 },
+        theme: 'light'
+      })
+    })
+
+    it('should update when multiple signals change sequentially', () => {
+      const { store, useSelector } = createSignalStore({
+        counter: 0,
+        theme: 'light',
+        status: 'idle'
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        counter: s.counter,
+        theme: s.theme,
+        status: s.status
+      })))
+
+      expect(result.current).toEqual({
+        counter: 0,
+        theme: 'light',
+        status: 'idle'
+      })
+
+      // First update
+      act(() => {
+        store.counter.set(10)
+      })
+      expect(result.current.counter).toBe(10)
+      expect(result.current.theme).toBe('light')
+
+      // Second update
+      act(() => {
+        store.theme.set('dark')
+      })
+      expect(result.current.counter).toBe(10)
+      expect(result.current.theme).toBe('dark')
+
+      // Third update
+      act(() => {
+        store.status.set('loading')
+      })
+      expect(result.current.status).toBe('loading')
+    })
+
+    it('should not re-render when non-selected signal changes', () => {
+      const { store, useSelector } = createSignalStore({
+        selected: 'initial',
+        notSelected: 'initial'
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        selected: s.selected
+      })))
+
+      const initialResult = result.current
+
+      // Update the non-selected signal
+      act(() => {
+        store.notSelected.set('changed')
+      })
+
+      // Result should remain the same reference since selected didn't change
+      expect(result.current).toBe(initialResult)
+      expect(result.current.selected).toBe('initial')
+    })
+
+    it('should react to changes when using draft mutations via useStore', () => {
+      const { store, useStore, useSelector } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light'
+      })
+
+      // Use useSelector to subscribe
+      const { result: selectorResult } = renderHook(() => useSelector(s => ({
+        user: s.user
+      })))
+
+      // Use useStore to update
+      const { result: storeResult } = renderHook(() => useStore('user'))
+
+      expect(selectorResult.current.user).toEqual({ name: 'John', age: 30 })
+
+      // Update via useStore setter
+      act(() => {
+        const [, setUser] = storeResult.current
+        setUser(draft => {
+          draft.age = 31
+        })
+      })
+
+      expect(selectorResult.current.user).toEqual({ name: 'John', age: 31 })
+    })
+  })
+
+  describe('error handling', () => {
+    it('should throw error when selector is not a function', () => {
+      const { useSelector } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useSelector('not a function'))
+      }).toThrow('useSelector expects a function as the selector argument')
+    })
+
+    it('should throw error when selector returns non-Signal value', () => {
+      const { useSelector } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useSelector(s => ({
+          value: 'not a signal'
+        })))
+      }).toThrow('Selector function must return an object of Signals. Key "value" is not a Signal.')
+    })
+
+    it('should throw error when selector returns null value in object', () => {
+      const { useSelector } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useSelector(s => ({
+          value: null
+        })))
+      }).toThrow('Selector function must return an object of Signals. Key "value" is not a Signal.')
+    })
+
+    it('should throw error when selector returns undefined value in object', () => {
+      const { useSelector } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useSelector(s => ({
+          value: undefined
+        })))
+      }).toThrow('Selector function must return an object of Signals. Key "value" is not a Signal.')
+    })
+
+    it('should throw error when selector returns number in object', () => {
+      const { useSelector } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useSelector(s => ({
+          count: 42
+        })))
+      }).toThrow('Selector function must return an object of Signals. Key "count" is not a Signal.')
+    })
+  })
+
+  describe('multiple selectors', () => {
+    it('should allow using different selectors with the same store', () => {
+      const { store, useSelector } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light',
+        counter: 0
+      })
+
+      // First selector - user and theme
+      const { result: result1 } = renderHook(() => useSelector(s => ({
+        user: s.user,
+        theme: s.theme
+      })))
+
+      // Second selector - counter only
+      const { result: result2 } = renderHook(() => useSelector(s => ({
+        counter: s.counter
+      })))
+
+      expect(result1.current).toEqual({
+        user: { name: 'John', age: 30 },
+        theme: 'light'
+      })
+      expect(result2.current).toEqual({
+        counter: 0
+      })
+
+      // Update counter
+      act(() => {
+        store.counter.set(100)
+      })
+
+      // Only result2 should update
+      expect(result1.current).toEqual({
+        user: { name: 'John', age: 30 },
+        theme: 'light'
+      })
+      expect(result2.current).toEqual({
+        counter: 100
+      })
+    })
+
+    it('should allow overlapping selectors on the same store', () => {
+      const { store, useSelector } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light'
+      })
+
+      // Both selectors select the same user signal
+      const { result: result1 } = renderHook(() => useSelector(s => ({
+        user: s.user
+      })))
+
+      const { result: result2 } = renderHook(() => useSelector(s => ({
+        user: s.user,
+        theme: s.theme
+      })))
+
+      expect(result1.current.user).toEqual({ name: 'John', age: 30 })
+      expect(result2.current.user).toEqual({ name: 'John', age: 30 })
+
+      // Update user
+      act(() => {
+        store.user.set({ name: 'Jane', age: 25 })
+      })
+
+      // Both should reflect the update
+      expect(result1.current.user).toEqual({ name: 'Jane', age: 25 })
+      expect(result2.current.user).toEqual({ name: 'Jane', age: 25 })
+    })
+
+    it('should work with selector that selects all store signals', () => {
+      const { store, useSelector } = createSignalStore({
+        user: { name: 'John' },
+        theme: 'light',
+        counter: 0
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        user: s.user,
+        theme: s.theme,
+        counter: s.counter
+      })))
+
+      expect(result.current).toEqual({
+        user: { name: 'John' },
+        theme: 'light',
+        counter: 0
+      })
+
+      // Update all values
+      act(() => {
+        store.user.set({ name: 'Jane' })
+        store.theme.set('dark')
+        store.counter.set(10)
+      })
+
+      expect(result.current).toEqual({
+        user: { name: 'Jane' },
+        theme: 'dark',
+        counter: 10
+      })
+    })
+  })
+
+  describe('selector returning signals from different parts of store', () => {
+    it('should select nested signal values', () => {
+      const { store, useSelector } = createSignalStore({
+        config: {
+          api: { url: 'https://api.example.com', timeout: 5000 },
+          features: { darkMode: true }
+        },
+        user: { name: 'John' }
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        config: s.config,
+        user: s.user
+      })))
+
+      expect(result.current.config).toEqual({
+        api: { url: 'https://api.example.com', timeout: 5000 },
+        features: { darkMode: true }
+      })
+
+      act(() => {
+        store.config.set({
+          api: { url: 'https://newapi.example.com', timeout: 3000 },
+          features: { darkMode: false }
+        })
+      })
+
+      expect(result.current.config).toEqual({
+        api: { url: 'https://newapi.example.com', timeout: 3000 },
+        features: { darkMode: false }
+      })
+    })
+
+    it('should select signals with renamed keys', () => {
+      const { useSelector } = createSignalStore({
+        userProfile: { name: 'John', age: 30 },
+        appTheme: 'light',
+        notificationCount: 5
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        profile: s.userProfile,
+        theme: s.appTheme,
+        unreadCount: s.notificationCount
+      })))
+
+      expect(result.current).toEqual({
+        profile: { name: 'John', age: 30 },
+        theme: 'light',
+        unreadCount: 5
+      })
+    })
+
+    it('should handle empty store with selector', () => {
+      const { useSelector } = createSignalStore({})
+
+      // Empty selector should work
+      const { result } = renderHook(() => useSelector(s => ({})))
+
+      expect(result.current).toEqual({})
+    })
+
+    it('should select single signal from store', () => {
+      const { store, useSelector } = createSignalStore({
+        user: { name: 'John' },
+        theme: 'light'
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        user: s.user
+      })))
+
+      expect(result.current).toEqual({
+        user: { name: 'John' }
+      })
+
+      act(() => {
+        store.user.set({ name: 'Jane' })
+      })
+
+      expect(result.current).toEqual({
+        user: { name: 'Jane' }
+      })
+    })
+  })
+
+  describe('integration with useStore', () => {
+    it('should work alongside useStore hook', () => {
+      const { store, useStore, useSelector } = createSignalStore({
+        user: { name: 'John' },
+        theme: 'light'
+      })
+
+      // Use useSelector for reading multiple values
+      const { result: selectorResult } = renderHook(() => useSelector(s => ({
+        user: s.user,
+        theme: s.theme
+      })))
+
+      // Use useStore for reading and writing
+      const { result: storeResult } = renderHook(() => useStore('user'))
+
+      expect(selectorResult.current.user).toEqual({ name: 'John' })
+      expect(storeResult.current[0]).toEqual({ name: 'John' })
+
+      // Update via useStore
+      act(() => {
+        const [, setUser] = storeResult.current
+        setUser({ name: 'Jane' })
+      })
+
+      // Both should reflect the change
+      expect(selectorResult.current.user).toEqual({ name: 'Jane' })
+      expect(storeResult.current[0]).toEqual({ name: 'Jane' })
+    })
+
+    it('should reflect changes made directly to store signals', () => {
+      const { store, useSelector } = createSignalStore({
+        counter: 0,
+        user: { name: 'John' }
+      })
+
+      const { result } = renderHook(() => useSelector(s => ({
+        counter: s.counter,
+        user: s.user
+      })))
+
+      expect(result.current.counter).toBe(0)
+
+      // Update directly via store
+      act(() => {
+        store.counter.set(100)
+      })
+
+      expect(result.current.counter).toBe(100)
+    })
+  })
+})
+
 describe('Error scenarios', () => {
   beforeEach(() => {
     globalStore.clearStore()

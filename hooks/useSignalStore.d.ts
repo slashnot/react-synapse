@@ -119,10 +119,54 @@ export interface TypedUseStore<T extends Record<string, any>> {
 }
 
 /**
+ * Selector function type for useSelector hook.
+ * Receives the typed store and returns an object of signals.
+ */
+export type UseSelectorFunction<T extends Record<string, any>, R extends Record<string, ReactSetSignal<any>>> = (store: TypedGlobalStore<T>) => R
+
+/**
+ * Helper type to unwrap signals in an object for useSelector return type.
+ * Takes an object of signals and returns an object with their unwrapped values.
+ */
+export type UnwrapSignalObject<T extends Record<string, ReactSetSignal<any>>> = {
+  [K in keyof T]: T[K] extends ReactSetSignal<infer V> ? V : never
+}
+
+/**
+ * Typed hook for selecting multiple signals at once.
+ * Subscribes to changes in all selected signals and returns their unwrapped values.
+ */
+export interface TypedUseSelector<T extends Record<string, any>> {
+  /**
+   * Select multiple signals from the store and subscribe to their changes.
+   * @param selector - Function that receives the typed store and returns an object of signals
+   * @returns An object containing the unwrapped values of the selected signals
+   *
+   * @example
+   * ```tsx
+   * const { store, useSelector } = createSignalStore({
+   *   user: { name: 'John', age: 30 },
+   *   theme: 'light'
+   * })
+   *
+   * // Subscribe to multiple signals at once
+   * const { user, theme } = useSelector(s => ({
+   *   user: s.user,
+   *   theme: s.theme
+   * }))
+   *
+   * // user is typed as { name: string, age: number }
+   * // theme is typed as string
+   * ```
+   */
+  <R extends Record<string, ReactSetSignal<any>>>(selector: UseSelectorFunction<T, R>): UnwrapSignalObject<R>
+}
+
+/**
  * Return type of createSignalStore with typed useStore hook
  * Returns an array that can also be accessed as an object
  */
-export type TypedSignalStore<T extends Record<string, any>> = [TypedGlobalStore<T>, TypedUseStore<T>] & {
+export type TypedSignalStore<T extends Record<string, any>> = [TypedGlobalStore<T>, TypedUseStore<T>, TypedUseSelector<T>] & {
   /**
    * The raw store object containing all signals
    */
@@ -149,6 +193,26 @@ export type TypedSignalStore<T extends Record<string, any>> = [TypedGlobalStore<
    * ```
    */
   useStore: TypedUseStore<T>
+
+  /**
+   * Typed hook for selecting multiple signals at once.
+   * Subscribes to changes in all selected signals and returns their unwrapped values.
+   * 
+   * @example
+   * ```tsx
+   * const { useSelector } = createSignalStore({
+   *   user: { name: 'John', age: 30 },
+   *   theme: 'light'
+   * })
+   * 
+   * // Subscribe to multiple signals at once
+   * const { user, theme } = useSelector(s => ({
+   *   user: s.user,
+   *   theme: s.theme
+   * }))
+   * ```
+   */
+  useSelector: TypedUseSelector<T>
 }
 
 /**

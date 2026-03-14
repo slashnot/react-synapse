@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect, useSyncExternalStore, useState, use, useCallback } from "react";
+import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { Signal, useReactiveSignal, computed, effect } from "react-set-signal";
 import { globalStore } from "./globalStore";
 
@@ -177,12 +177,65 @@ const createUseStoreHook = (store) => {
 }
 
 
+/**
+ * Create a typed useSelector hook bound to a specific store.
+ * The returned hook allows selecting multiple signals at once and subscribing to their changes.
+ *
+ * This is useful when you need to:
+ * - Subscribe to multiple signals in a single hook call
+ * - Get a snapshot of multiple signal values at once
+ * - Avoid multiple re-renders when multiple signals change
+ *
+ * @param {Object} store - The store object containing signals (from createSignalStore)
+ * @returns {Function} A typed useSelector hook that accepts a selector function
+ *
+ * @example
+ * // Create a store with multiple signals
+ * const { store, useSelector } = createSignalStore({
+ *   user: { name: 'John', age: 30 },
+ *   theme: 'light',
+ *   notifications: []
+ * })
+ *
+ * // Use the selector hook to subscribe to multiple signals
+ * function UserProfile() {
+ *   const { user, theme } = useSelector(s => ({
+ *     user: s.user,
+ *     theme: s.theme
+ *   }))
+ *
+ *   return (
+ *     <div className={theme}>
+ *       <h1>{user.name}</h1>
+ *     </div>
+ *   )
+ * }
+ *
+ * @example
+ * // Selecting a subset of signal values
+ * const { name, age } = useSelector(s => ({
+ *   name: s.user,
+ *   age: s.userAge
+ * }))
+ */
 const createUseSelectorHook = (store) => {
+    /**
+     * Typed selector hook for subscribing to multiple signals at once.
+     *
+     * @param {Function} selector - A function that receives the store and returns an object of signals
+     * @returns {Object} An object containing the unwrapped values of the selected signals
+     * @throws {Error} If selector is not a function
+     * @throws {Error} If selector does not return an object of Signals
+     */
     return (selector) => {
-        const $states = selector(store)
-
         const effectFn = useCallback(() => {
+            if (typeof selector !== 'function') {
+                throw new Error('useSelector expects a function as the selector argument')
+            }
+
+            const $states = selector(store)
             const states = {}
+
             for (const key in $states) {
                 if (!($states[key] instanceof Signal)) {
                     throw new Error(`Selector function must return an object of Signals. Key "${key}" is not a Signal.`)
@@ -190,13 +243,12 @@ const createUseSelectorHook = (store) => {
                 states[key] = $states[key].value
             }
             return states
-        }, [$states])
-        
+        }, [selector])
+
         const [signal, setSignal] = useState(effectFn())
         useEffect(() => {
             const unsubscribe = effect(() => {
                 const states = effectFn()
-                console.log("EFFECTS STATE---->", states)
                 setSignal(states)
             })
             return unsubscribe
