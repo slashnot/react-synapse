@@ -1,5 +1,5 @@
-import { useMemo, useRef, useEffect } from "react";
-import { Signal, useReactiveSignal, computed } from "react-set-signal";
+import { useMemo, useRef, useEffect, useSyncExternalStore, useState, use, useCallback } from "react";
+import { Signal, useReactiveSignal, computed, effect } from "react-set-signal";
 import { globalStore } from "./globalStore";
 
 /**
@@ -176,6 +176,36 @@ const createUseStoreHook = (store) => {
     }
 }
 
+
+const createUseSelectorHook = (store) => {
+    return (selector) => {
+        const $states = selector(store)
+
+        const effectFn = useCallback(() => {
+            const states = {}
+            for (const key in $states) {
+                if (!($states[key] instanceof Signal)) {
+                    throw new Error(`Selector function must return an object of Signals. Key "${key}" is not a Signal.`)
+                }
+                states[key] = $states[key].value
+            }
+            return states
+        }, [$states])
+        
+        const [signal, setSignal] = useState(effectFn())
+        useEffect(() => {
+            const unsubscribe = effect(() => {
+                const states = effectFn()
+                console.log("EFFECTS STATE---->", states)
+                setSignal(states)
+            })
+            return unsubscribe
+        }, [])
+
+        return signal
+    }
+}
+
 /**
  * Create multiple signal stores from an initial states object.
  * Returns a typed store and useStore hook for full type inference.
@@ -207,9 +237,10 @@ const createSignalStore = (initialStates) => {
 
     const store = globalStore.getStore()
     const useStore = createUseStoreHook(store)
+    const useSelector = createUseSelectorHook(store)
 
     // Return both the store and a typed useStore hook
-    return Object.assign([store, useStore], { store, useStore })
+    return Object.assign([store, useStore, useSelector], { store, useStore, useSelector })
 }
 
 // -----------------------------
