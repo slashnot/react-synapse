@@ -1,6 +1,6 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { Signal, useReactiveSignal, computed, effect } from "react-set-signal";
-import { globalStore } from "./globalStore";
+import { GlobalStore } from "./globalStore";
 
 /**
  * Shallow equality comparison for arrays
@@ -21,27 +21,6 @@ const shallowObjectEqual = (obj1, obj2) => {
     if (keys1.length !== keys2.length) return false;
     return keys1.every(key => key in obj2 && Object.is(obj1[key], obj2[key]));
 };
-
-/**
- * Internal function to get or create a store signal
- */
-const getStoreSignal = (idOrFunction, initialState) => {
-    // String ID based store retrieval/creation
-    if (typeof idOrFunction === 'string') {
-        if (idOrFunction.length === 0) {
-            throw new Error('Store ID cannot be an empty string')
-        }
-        return globalStore.hasState(idOrFunction)
-            ? globalStore.getStoreState(idOrFunction)
-            : globalStore.setStoreState(idOrFunction, initialState)
-    }
-
-    // Function based store retrieval/creation
-    if (typeof idOrFunction === 'function') {
-        return idOrFunction(globalStore.getStore())
-    }
-    throw new Error('useSignalStore expects either a string ID or a function')
-}
 
 /**
  * Create a typed useStore hook bound to a specific store
@@ -376,13 +355,14 @@ const createSignalStore = (initialStates) => {
     if (typeof initialStates !== 'object' || initialStates === null) {
         throw new Error("createSignalStore expects an object as initialStates")
     }
+    const localStore = new GlobalStore()
 
-    // Create all signals in the global store
+    // Create all signals in the local store
     for (const key in initialStates) {
-        globalStore.setStoreState(key, initialStates[key])
+        localStore.setStoreState(key, initialStates[key])
     }
 
-    const store = globalStore.getStore()
+    const store = localStore.getStore()
     const useStore = createUseStoreHook(store)
     const useSelector = createUseSelectorHook(store)
     const useSetter = createUseSetter(store)
@@ -391,57 +371,5 @@ const createSignalStore = (initialStates) => {
     return Object.assign([store, useStore, useSelector, useSetter], { store, useStore, useSelector, useSetter })
 }
 
-// -----------------------------
-// useSignalStore hook (legacy/generic)
-// -----------------------------
-/**
- * A React hook for managing global state using Preact Signals.
- * For full type inference, use the useStore hook returned from createSignalStore instead.
- * 
- * @param {string|Function} idOrFunction - Either a string ID or a function that receives the store
- * @param {*} initialState - The initial state value (required for string ID pattern)
- * @returns {[*, Function]|*} For string ID: [state, setter]. For function: the state value.
- * 
- * WARNING: When using function selectors, avoid passing inline arrow functions as they
- * create new references on each render, causing unnecessary signal recreation. Instead,
- * define the selector function outside the component or use useMemo/useCallback to
- * stabilize the reference:
- * 
- * @example
- * // ❌ Bad: Inline function creates new reference each render
- * const state = useSignalStore(store => store.user)
- * 
- * // ✅ Good: Stable function reference
- * const selectUser = useCallback(store => store.user, [])
- * const state = useSignalStore(selectUser)
- * 
- * // ✅ Good: Define outside component
- * const selectUser = store => store.user
- * function MyComponent() {
- *   const state = useSignalStore(selectUser)
- * }
- */
-const useSignalStore = (idOrFunction, initialState) => {
-    // Use stable dependency key to prevent unnecessary signal recreation
-    // For strings: use the string value itself (stable)
-    // For functions: use 'function' as key to avoid recreation on reference change
-    // This is a trade-off: inline functions won't cause recreation, but if you need
-    // to change the selector, define it outside the component and use a stable reference
-    const $signal = useMemo(() => getStoreSignal(idOrFunction, initialState), [
-        typeof idOrFunction === 'string' ? idOrFunction : typeof idOrFunction,
-        initialState
-    ])
-    const signal = useReactiveSignal($signal)
-
-    // For string pattern: return tuple [state, setter]
-    // For function pattern: return just the state value
-    if (typeof idOrFunction === 'string') {
-        return [signal, $signal.set]
-    } else {
-        // Function pattern returns just the state
-        return signal
-    }
-}
-
-export { useSignalStore, createSignalStore }
-export default useSignalStore;
+export { createSignalStore }
+export default createSignalStore;
