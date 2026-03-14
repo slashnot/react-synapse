@@ -5,16 +5,14 @@ import { GlobalStore } from "./globalStore";
 
 /**
  * Create a typed useStore hook bound to a specific store
- * Supports both string key pattern and function selector pattern.
+ * Uses string key pattern to access store signals.
  *
  * @param {Object} store - The store object containing signals
  * @returns {Function} A typed useStore hook
  */
 const createUseStoreHook = (store) => {
     /**
-     * @param {string|Function} keyOrFunction - Either a string key or a selector function
-     * @param {Object} [options] - Options for the hook
-     * @param {boolean} [options.unwrap=true] - When false, returns raw signals instead of unwrapped values (for fine-grained control)
+     * @param {string} key - A string key to access the store signal
      */
     return (key) => {
         if (typeof key !== 'string')
@@ -212,10 +210,7 @@ const createUseSetter = (store) => {
  * 
  * // String key pattern - returns [value, setter]
  * const [user, setUser] = useStore('user')
- * 
- * // Function selector pattern - returns just the value
- * const theme = useStore(s => s.theme)
- * 
+ *
  * // Select multiple values at once
  * const { user, theme } = useSelector(s => ({
  *   user: s.user,

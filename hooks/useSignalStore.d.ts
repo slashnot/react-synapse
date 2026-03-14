@@ -59,7 +59,7 @@ export interface UseStoreOptions {
 
 /**
  * Typed hook for accessing store values with full type inference
- * Supports both string key pattern and function selector pattern.
+ * Supports string key pattern only.
  */
 export interface TypedUseStore<T extends Record<string, any>> {
   /**
@@ -79,43 +79,6 @@ export interface TypedUseStore<T extends Record<string, any>> {
    * ```
    */
   <K extends keyof T & string>(key: K): UseStoreResult<T[K]>
-  
-  /**
-   * Access a store value using a selector function (with auto-unwrap)
-   * @param selector - Function that receives the typed store and returns a signal
-   * @returns The current value of the selected signal
-   *
-   * @example
-   * ```tsx
-   * const theme = useStore(s => s.theme)
-   * // theme is typed based on the store definition
-   * ```
-   */
-  <R>(selector: StoreSelector<T, R>): UnwrapSignals<R>
-
-  /**
-   * Access a store value using a selector function with options
-   * @param selector - Function that receives the typed store and returns a signal or signals
-   * @param options - Options for controlling the hook behavior
-   * @returns When unwrap is true (default): the unwrapped values. When unwrap is false: the raw signals.
-   *
-   * @example
-   * ```tsx
-   * // Default behavior (unwrap: true) - values are unwrapped
-   * const { user, theme } = useStore(s => ({ user: s.user, theme: s.theme }))
-   *
-   * // Fine-grained control (unwrap: false) - signals returned directly
-   * const { user, theme } = useStore(
-   *   s => ({ user: s.user, theme: s.theme }),
-   *   { unwrap: false }
-   * )
-   * // Access .value on each signal for fine-grained reactivity
-   * const userName = user.value.name
-   * ```
-   */
-  <R>(selector: StoreSelector<T, R>, options: { unwrap: false }): R
-  <R>(selector: StoreSelector<T, R>, options: { unwrap: true }): UnwrapSignals<R>
-  <R>(selector: StoreSelector<T, R>, options?: UseStoreOptions): UnwrapSignals<R> | R
 }
 
 /**
