@@ -1,26 +1,7 @@
-import { useMemo, useRef, useEffect, useState, useCallback } from "react";
-import { Signal, useReactiveSignal, computed, effect } from "react-set-signal";
+import { useMemo, useEffect, useState, useCallback } from "react";
+import { Signal, effect, useReactiveSignal } from "react-set-signal";
 import { GlobalStore } from "./globalStore";
 
-/**
- * Shallow equality comparison for arrays
- */
-const shallowArrayEqual = (arr1, arr2) => {
-    if (!arr1 || !arr2) return false;
-    if (arr1.length !== arr2.length) return false;
-    return arr1.every((v, i) => Object.is(v, arr2[i]));
-};
-
-/**
- * Shallow equality comparison for objects
- */
-const shallowObjectEqual = (obj1, obj2) => {
-    if (!obj1 || !obj2) return false;
-    const keys1 = Object.keys(obj1);
-    const keys2 = Object.keys(obj2);
-    if (keys1.length !== keys2.length) return false;
-    return keys1.every(key => key in obj2 && Object.is(obj1[key], obj2[key]));
-};
 
 /**
  * Create a typed useStore hook bound to a specific store
@@ -35,123 +16,19 @@ const createUseStoreHook = (store) => {
      * @param {Object} [options] - Options for the hook
      * @param {boolean} [options.unwrap=true] - When false, returns raw signals instead of unwrapped values (for fine-grained control)
      */
-    return (keyOrFunction, options = {}) => {
-        const { unwrap = true } = options;
-
-        // Use refs to maintain stable references across renders
-        const selectorRef = useRef(keyOrFunction);
-        const memoRef = useRef({ prevValues: null, prevResult: null, isArray: null });
-        const computedRef = useRef(null);
-
-        // Cleanup on unmount to prevent memory leaks
-        useEffect(() => {
-            return () => {
-                // Dispose of computed signal if it has a dispose method
-                if (computedRef.current && typeof computedRef.current.dispose === 'function') {
-                    computedRef.current.dispose();
-                }
-                // Clear refs to allow garbage collection
-                computedRef.current = null;
-                memoRef.current = { prevValues: null, prevResult: null, isArray: null };
-            };
-        }, []);
-
-        // Update selector ref on each render (so computed always uses latest selector)
-        selectorRef.current = keyOrFunction;
+    return (key) => {
+        if (typeof key !== 'string')
+            throw new Error('useStore expects a string key')
 
         const $signal = useMemo(() => {
-            // String key pattern
-            if (typeof keyOrFunction === 'string') {
-                if (!(keyOrFunction in store)) {
-                    throw new Error(`Store key "${keyOrFunction}" does not exist. Make sure it was defined in createSignalStore.`)
-                }
-                return store[keyOrFunction]
+            if (!(key in store)) {
+                throw new Error(`Store key "${key}" does not exist. Make sure it was defined in createSignalStore.`)
             }
-
-            // Function selector pattern
-            if (typeof keyOrFunction === 'function') {
-                const result = keyOrFunction(store)
-                // If the selector returns a Signal, use it directly
-                if (result instanceof Signal) {
-                    return result
-                }
-
-                // If unwrap is false, return signals directly for fine-grained control
-                if (!unwrap) {
-                    return result
-                }
-
-                // Track if result type is array for the memoization logic
-                const isArray = Array.isArray(result);
-                const memo = memoRef.current;
-
-                // Reset memo if result type changed
-                if (memo.isArray !== isArray) {
-                    memo.prevValues = null;
-                    memo.prevResult = null;
-                    memo.isArray = isArray;
-                }
-
-                // Reuse existing computed if possible
-                if (computedRef.current) {
-                    return computedRef.current;
-                }
-
-                // Create computed that reads from refs for stable behavior
-                const $computed = computed(() => {
-                    const currentSelector = selectorRef.current;
-                    const states = currentSelector(store);
-
-                    if (isArray) {
-                        const newValues = states.map(state => state.value);
-
-                        // Shallow equality check - return same reference if unchanged
-                        if (shallowArrayEqual(memo.prevValues, newValues)) {
-                            return memo.prevResult;
-                        }
-
-                        memo.prevValues = newValues;
-                        memo.prevResult = [...newValues];
-                        return memo.prevResult;
-                    } else {
-                        const computedStates = {};
-                        for (const key in states) {
-                            computedStates[key] = states[key].value;
-                        }
-
-                        // Shallow equality check - return same reference if unchanged
-                        if (shallowObjectEqual(memo.prevValues, computedStates)) {
-                            return memo.prevResult;
-                        }
-
-                        memo.prevValues = computedStates;
-                        memo.prevResult = { ...computedStates };
-                        return memo.prevResult;
-                    }
-                });
-
-                computedRef.current = $computed;
-                return $computed;
-            }
-
-            throw new Error('useStore expects either a string key or a selector function')
-            // Only depend on unwrap and whether it's a string/function (not the function reference itself)
-        }, [typeof keyOrFunction === 'string' ? keyOrFunction : 'function', unwrap])
-
-        // When unwrap is false and result is array/object, return directly without useReactiveSignal
-        if (!unwrap && typeof keyOrFunction === 'function') {
-            const result = keyOrFunction(store);
-            if (!(result instanceof Signal)) {
-                return result;
-            }
-        }
+            return store[key]
+        }, [key])
 
         const signal = useReactiveSignal($signal)
-        if (typeof keyOrFunction === 'string') {
-            return Object.assign([signal, $signal.set], { signal, setSignal: $signal.set }) // Return tuple with additional properties for convenience
-        }
-        // Function selector pattern returns just the value
-        return signal
+        return Object.assign([signal, $signal.set], { signal, setSignal: $signal.set })
     }
 }
 
@@ -218,7 +95,7 @@ const createUseSelectorHook = (store) => {
                 if ($states instanceof Signal) {
                     return $states.value
                 }
-                
+
                 for (const key in $states) {
                     if (!($states[key] instanceof Signal)) {
                         throw new Error(`Selector function must return an object of Signals. Key "${key}" is not a Signal.`)
