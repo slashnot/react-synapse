@@ -139,8 +139,8 @@ export type UnwrapSignalObject<T extends Record<string, ReactSetSignal<any>>> = 
 export interface TypedUseSelector<T extends Record<string, any>> {
   /**
    * Select multiple signals from the store and subscribe to their changes.
-   * @param selector - Function that receives the typed store and returns an object of signals
-   * @returns An object containing the unwrapped values of the selected signals
+   * @param selector - Function that receives the typed store and returns an object of signals or a single signal
+   * @returns An object containing the unwrapped values of the selected signals, or a single unwrapped value
    *
    * @example
    * ```tsx
@@ -157,16 +157,64 @@ export interface TypedUseSelector<T extends Record<string, any>> {
    *
    * // user is typed as { name: string, age: number }
    * // theme is typed as string
+   *
+   * // Or select a single signal
+   * const user = useSelector(s => s.user)
+   * // user is typed as { name: string, age: number }
    * ```
    */
   <R extends Record<string, ReactSetSignal<any>>>(selector: UseSelectorFunction<T, R>): UnwrapSignalObject<R>
+  <R extends ReactSetSignal<any>>(selector: StoreSelector<T, R>): UnwrapSignal<R>
+}
+
+/**
+ * Helper type to extract setter types from an object of signals.
+ * Takes an object of signals and returns an object with their setter functions.
+ */
+export type SignalSetterObject<T extends Record<string, ReactSetSignal<any>>> = {
+  [K in keyof T]: T[K] extends ReactSetSignal<infer V> ? SignalSetter<V> : never
+}
+
+/**
+ * Typed hook for getting setter functions for multiple signals.
+ * Does not subscribe to changes - only returns setter functions.
+ */
+export interface TypedUseSetter<T extends Record<string, any>> {
+  /**
+   * Get setter functions for multiple signals without subscribing to their changes.
+   * @param selector - Function that receives the typed store and returns an object of signals or a single signal
+   * @returns An object containing the setter functions, or a single setter function
+   *
+   * @example
+   * ```tsx
+   * const { store, useSetter } = createSignalStore({
+   *   user: { name: 'John', age: 30 },
+   *   theme: 'light'
+   * })
+   *
+   * // Get multiple setters without subscribing to value changes
+   * const { setUser, setTheme } = useSetter(s => ({
+   *   setUser: s.user,
+   *   setTheme: s.theme
+   * }))
+   *
+   * // setUser is typed as (fnOrValue) => T
+   * // setTheme is typed as (fnOrValue) => T
+   *
+   * // Or get a single setter
+   * const setUser = useSetter(s => s.user)
+   * // setUser is typed as SignalSetter<{ name: string, age: number }>
+   * ```
+   */
+  <R extends Record<string, ReactSetSignal<any>>>(selector: UseSelectorFunction<T, R>): SignalSetterObject<R>
+  <R extends ReactSetSignal<any>>(selector: StoreSelector<T, R>): R extends ReactSetSignal<infer V> ? SignalSetter<V> : never
 }
 
 /**
  * Return type of createSignalStore with typed useStore hook
  * Returns an array that can also be accessed as an object
  */
-export type TypedSignalStore<T extends Record<string, any>> = [TypedGlobalStore<T>, TypedUseStore<T>, TypedUseSelector<T>] & {
+export type TypedSignalStore<T extends Record<string, any>> = [TypedGlobalStore<T>, TypedUseStore<T>, TypedUseSelector<T>, TypedUseSetter<T>] & {
   /**
    * The raw store object containing all signals
    */
@@ -213,20 +261,40 @@ export type TypedSignalStore<T extends Record<string, any>> = [TypedGlobalStore<
    * ```
    */
   useSelector: TypedUseSelector<T>
+
+  /**
+   * Typed hook for getting setter functions without subscribing to value changes.
+   * Useful when you only need to update signals, not read them.
+   * 
+   * @example
+   * ```tsx
+   * const { useSetter } = createSignalStore({
+   *   user: { name: 'John', age: 30 },
+   *   theme: 'light'
+   * })
+   * 
+   * // Get setters without subscribing to value changes
+   * const { setUser, setTheme } = useSetter(s => ({
+   *   setUser: s.user,
+   *   setTheme: s.theme
+   * }))
+   * ```
+   */
+  useSetter: TypedUseSetter<T>
 }
 
 /**
  * Create multiple signal stores from an initial states object.
- * Returns a typed store and a typed useStore hook for full type inference.
+ * Returns a typed store and hooks for full type inference.
  * 
  * @template T - The shape of the initial state object
  * @param initialStates - Object containing initial values for each store
- * @returns An object with the typed store and useStore hook
+ * @returns An object with the typed store, useStore, useSelector, and useSetter hooks
  * 
  * @example
  * ```tsx
  * // Create store with initial state
- * const { store, useStore } = createSignalStore({
+ * const { store, useStore, useSelector, useSetter } = createSignalStore({
  *   user: { name: 'John', age: 30 },
  *   theme: 'light',
  *   notifications: [] as string[]
@@ -239,6 +307,18 @@ export type TypedSignalStore<T extends Record<string, any>> = [TypedGlobalStore<
  * 
  * // Function selector pattern
  * const theme = useStore(s => s.theme)  // theme: string
+ * 
+ * // Select multiple values at once
+ * const { user, theme } = useSelector(s => ({
+ *   user: s.user,
+ *   theme: s.theme
+ * }))
+ * 
+ * // Get setters without subscribing to changes
+ * const { setUser, setTheme } = useSetter(s => ({
+ *   setUser: s.user,
+ *   setTheme: s.theme
+ * }))
  * 
  * setUser(draft => {
  *   draft.name = 'Jane'  // ✓ autocomplete works

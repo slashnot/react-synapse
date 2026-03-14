@@ -1317,6 +1317,404 @@ describe('createUseSelectorHook (useSelector)', () => {
   })
 })
 
+describe('createSetter (useSetter)', () => {
+  beforeEach(() => {
+    globalStore.clearStore()
+  })
+
+  describe('basic usage', () => {
+    it('should return setter functions for multiple signals', () => {
+      const { useSetter } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light',
+        counter: 42
+      })
+
+      const { result } = renderHook(() => useSetter(s => ({
+        setUser: s.user,
+        setTheme: s.theme,
+        setCounter: s.counter
+      })))
+
+      expect(typeof result.current.setUser).toBe('function')
+      expect(typeof result.current.setTheme).toBe('function')
+      expect(typeof result.current.setCounter).toBe('function')
+    })
+
+    it('should return a single setter function when selector returns a single signal', () => {
+      const { useSetter } = createSignalStore({
+        user: { name: 'John', age: 30 }
+      })
+
+      const { result } = renderHook(() => useSetter(s => s.user))
+
+      expect(typeof result.current).toBe('function')
+    })
+
+    it('should return setters for a subset of signals', () => {
+      const { useSetter } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light',
+        notifications: [{ id: 1 }]
+      })
+
+      const { result } = renderHook(() => useSetter(s => ({
+        setUser: s.user,
+        setTheme: s.theme
+      })))
+
+      expect(typeof result.current.setUser).toBe('function')
+      expect(typeof result.current.setTheme).toBe('function')
+      expect(result.current.setNotifications).toBeUndefined()
+    })
+  })
+
+  describe('updating values', () => {
+    it('should update values using the returned setters', () => {
+      const { store, useSetter } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light'
+      })
+
+      const { result } = renderHook(() => useSetter(s => ({
+        setUser: s.user,
+        setTheme: s.theme
+      })))
+
+      // Update user
+      act(() => {
+        result.current.setUser({ name: 'Jane', age: 25 })
+      })
+
+      expect(store.user.value).toEqual({ name: 'Jane', age: 25 })
+
+      // Update theme
+      act(() => {
+        result.current.setTheme('dark')
+      })
+
+      expect(store.theme.value).toBe('dark')
+    })
+
+    it('should update values using draft mutations', () => {
+      const { store, useSetter } = createSignalStore({
+        user: { name: 'John', age: 30, preferences: { theme: 'light' } }
+      })
+
+      const { result } = renderHook(() => useSetter(s => ({
+        setUser: s.user
+      })))
+
+      act(() => {
+        result.current.setUser(draft => {
+          draft.name = 'Jane'
+          draft.preferences.theme = 'dark'
+        })
+      })
+
+      expect(store.user.value).toEqual({
+        name: 'Jane',
+        age: 30,
+        preferences: { theme: 'dark' }
+      })
+    })
+
+    it('should update single signal using returned setter', () => {
+      const { store, useSetter } = createSignalStore({
+        counter: 0
+      })
+
+      const { result } = renderHook(() => useSetter(s => s.counter))
+
+      act(() => {
+        result.current(10)
+      })
+
+      expect(store.counter.value).toBe(10)
+    })
+
+    it('should work with primitive values', () => {
+      const { store, useSetter } = createSignalStore({
+        count: 0,
+        message: 'hello',
+        isActive: false
+      })
+
+      const { result } = renderHook(() => useSetter(s => ({
+        setCount: s.count,
+        setMessage: s.message,
+        setIsActive: s.isActive
+      })))
+
+      act(() => {
+        result.current.setCount(42)
+        result.current.setMessage('world')
+        result.current.setIsActive(true)
+      })
+
+      expect(store.count.value).toBe(42)
+      expect(store.message.value).toBe('world')
+      expect(store.isActive.value).toBe(true)
+    })
+
+    it('should work with array values', () => {
+      const { store, useSetter } = createSignalStore({
+        items: ['a', 'b', 'c']
+      })
+
+      const { result } = renderHook(() => useSetter(s => ({
+        setItems: s.items
+      })))
+
+      act(() => {
+        result.current.setItems(draft => {
+          draft.push('d')
+        })
+      })
+
+      expect(store.items.value).toEqual(['a', 'b', 'c', 'd'])
+    })
+  })
+
+  describe('no re-renders', () => {
+    it('should not cause re-render when values change', () => {
+      const { store, useSetter } = createSignalStore({
+        counter: 0
+      })
+
+      let renderCount = 0
+      const { result } = renderHook(() => {
+        renderCount++
+        return useSetter(s => ({ setCounter: s.counter }))
+      })
+
+      expect(renderCount).toBe(1)
+
+      // Update the store value
+      act(() => {
+        store.counter.set(100)
+      })
+
+      // Should not cause a re-render
+      expect(renderCount).toBe(1)
+      expect(store.counter.value).toBe(100)
+    })
+
+    it('should maintain stable setter references', () => {
+      const { store, useSetter } = createSignalStore({
+        user: { name: 'John' },
+        theme: 'light'
+      })
+
+      const { result, rerender } = renderHook(() => useSetter(s => ({
+        setUser: s.user,
+        setTheme: s.theme
+      })))
+
+      const firstSetters = result.current
+
+      rerender()
+
+      // Setters should be the same reference
+      expect(result.current.setUser).toBe(firstSetters.setUser)
+      expect(result.current.setTheme).toBe(firstSetters.setTheme)
+    })
+  })
+
+  describe('error handling', () => {
+    it('should throw error when selector is not a function', () => {
+      const { useSetter } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useSetter('not a function'))
+      }).toThrow('useSetter expects a function as the selector argument')
+    })
+
+    it('should throw error when selector returns non-Signal value in object', () => {
+      const { useSetter } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useSetter(s => ({
+          value: 'not a signal'
+        })))
+      }).toThrow('Selector function must return an object of Signals. Key "value" is not a Signal.')
+    })
+
+    it('should throw error when selector returns null in object', () => {
+      const { useSetter } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useSetter(s => ({
+          value: null
+        })))
+      }).toThrow('Selector function must return an object of Signals. Key "value" is not a Signal.')
+    })
+
+    it('should throw error when selector returns number in object', () => {
+      const { useSetter } = createSignalStore({
+        user: { name: 'John' }
+      })
+
+      expect(() => {
+        renderHook(() => useSetter(s => ({
+          count: 42
+        })))
+      }).toThrow('Selector function must return an object of Signals. Key "count" is not a Signal.')
+    })
+  })
+
+  describe('integration with other hooks', () => {
+    it('should work alongside useStore', () => {
+      const { store, useStore, useSetter } = createSignalStore({
+        user: { name: 'John' },
+        theme: 'light'
+      })
+
+      // Use useStore to read values
+      const { result: storeResult } = renderHook(() => useStore('user'))
+
+      // Use useSetter to get setters
+      const { result: setterResult } = renderHook(() => useSetter(s => ({
+        setUser: s.user
+      })))
+
+      expect(storeResult.current[0]).toEqual({ name: 'John' })
+
+      // Update via useSetter
+      act(() => {
+        setterResult.current.setUser({ name: 'Jane' })
+      })
+
+      // useStore should reflect the change
+      expect(storeResult.current[0]).toEqual({ name: 'Jane' })
+    })
+
+    it('should work alongside useSelector', () => {
+      const { store, useSelector, useSetter } = createSignalStore({
+        user: { name: 'John' },
+        theme: 'light'
+      })
+
+      // Use useSelector to subscribe to values
+      const { result: selectorResult } = renderHook(() => useSelector(s => ({
+        user: s.user,
+        theme: s.theme
+      })))
+
+      // Use useSetter to get setters
+      const { result: setterResult } = renderHook(() => useSetter(s => ({
+        setUser: s.user,
+        setTheme: s.theme
+      })))
+
+      expect(selectorResult.current.user).toEqual({ name: 'John' })
+
+      // Update via useSetter
+      act(() => {
+        setterResult.current.setUser({ name: 'Jane' })
+        setterResult.current.setTheme('dark')
+      })
+
+      // useSelector should reflect the changes
+      expect(selectorResult.current.user).toEqual({ name: 'Jane' })
+      expect(selectorResult.current.theme).toBe('dark')
+    })
+
+    it('should work with all hooks together', () => {
+      const { store, useStore, useSelector, useSetter } = createSignalStore({
+        user: { name: 'John', age: 30 },
+        theme: 'light',
+        counter: 0
+      })
+
+      // useStore for reading/writing single value
+      const { result: storeResult } = renderHook(() => useStore('counter'))
+
+      // useSelector for reading multiple values
+      const { result: selectorResult } = renderHook(() => useSelector(s => ({
+        user: s.user,
+        theme: s.theme
+      })))
+
+      // useSetter for updating without subscribing
+      const { result: setterResult } = renderHook(() => useSetter(s => ({
+        setUser: s.user,
+        setTheme: s.theme
+      })))
+
+      // Initial state
+      expect(storeResult.current[0]).toBe(0)
+      expect(selectorResult.current.user).toEqual({ name: 'John', age: 30 })
+      expect(selectorResult.current.theme).toBe('light')
+
+      // Update via useStore
+      act(() => {
+        const [, setCounter] = storeResult.current
+        setCounter(10)
+      })
+
+      expect(storeResult.current[0]).toBe(10)
+
+      // Update via useSetter
+      act(() => {
+        setterResult.current.setUser({ name: 'Jane', age: 25 })
+      })
+
+      expect(selectorResult.current.user).toEqual({ name: 'Jane', age: 25 })
+    })
+  })
+
+  describe('return value structure', () => {
+    it('should return object with same keys as selector', () => {
+      const { useSetter } = createSignalStore({
+        user: { name: 'John' },
+        theme: 'light',
+        counter: 0
+      })
+
+      const { result } = renderHook(() => useSetter(s => ({
+        customKey1: s.user,
+        customKey2: s.theme
+      })))
+
+      expect(result.current).toHaveProperty('customKey1')
+      expect(result.current).toHaveProperty('customKey2')
+      expect(result.current).not.toHaveProperty('counter')
+    })
+
+    it('should return setters that can be called multiple times', () => {
+      const { store, useSetter } = createSignalStore({
+        counter: 0
+      })
+
+      const { result } = renderHook(() => useSetter(s => ({
+        setCounter: s.counter
+      })))
+
+      act(() => {
+        result.current.setCounter(1)
+      })
+      expect(store.counter.value).toBe(1)
+
+      act(() => {
+        result.current.setCounter(2)
+      })
+      expect(store.counter.value).toBe(2)
+
+      act(() => {
+        result.current.setCounter(draft => draft + 1)
+      })
+      expect(store.counter.value).toBe(3)
+    })
+  })
+})
+
 describe('Error scenarios', () => {
   beforeEach(() => {
     globalStore.clearStore()
