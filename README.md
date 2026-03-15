@@ -9,6 +9,20 @@ A lightweight React library that brings the power of [Preact Signals](https://pr
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
 - [API Reference](#api-reference)
+  - [createSignalStore](#createsignalstoreinitialstates)
+  - [useStore Hook](#usestore-hook)
+  - [useSelector Hook](#useselector-hook)
+  - [useSetter Hook](#usesetter-hook)
+  - [createDerivedSignalStore](#createderivedsignalstoreinitialstates)
+  - [storeFactory](#storefactoryissignal)
+  - [useReactive](#usereactiveinitialstate)
+  - [useReactiveSignal](#usereactivesignalsignal)
+  - [createSignal](#createsignalinitialvalue)
+  - [signal](#signalvalue)
+  - [computed](#computedfn)
+  - [effect](#effectfn)
+  - [batch](#batchfn)
+  - [globalStore](#globalstore)
 - [Usage Examples](#usage-examples)
 - [TypeScript Guide](#typescript-guide)
 - [Best Practices](#best-practices)
@@ -76,7 +90,7 @@ function Counter() {
 // store.js
 import { createSignalStore } from 'react-synapse';
 
-export const { store, useStore } = createSignalStore({
+export const { store, useStore, useSelector } = createSignalStore({
   user: { name: 'John', age: 30 },
   theme: 'light',
   counter: 0
@@ -100,11 +114,11 @@ function Counter() {
 
 ```jsx
 // UserProfile.jsx
-import { useStore } from './store';
+import { useStore, useSelector } from './store';
 
 function UserProfile() {
   const [user, setUser] = useStore('user');
-  const theme = useStore(s => s.theme);
+  const theme = useSelector(s => s.theme);
   
   return (
     <div className={theme}>
@@ -177,7 +191,7 @@ setUser(current => ({ ...current, age: current.age + 1 }));
 
 ### `createSignalStore(initialStates)`
 
-Creates a typed global store with multiple signal-based state entries. Returns a `store` object and a typed `useStore` hook.
+Creates a typed global store with multiple signal-based state entries. Returns a `store` object and typed hooks for accessing and updating state.
 
 **Parameters:**
 
@@ -191,9 +205,10 @@ The function returns an array that is also augmented with object properties, all
 
 | Return Format | Description |
 |---------------|-------------|
-| `[store, useStore]` | Array format for positional destructuring |
 | `result.store` | The raw store object with all signals |
-| `result.useStore` | A typed React hook for accessing store values |
+| `result.useStore` | A typed React hook for accessing store values (string keys only) |
+| `result.useSelector` | A typed hook for selecting multiple signals at once |
+| `result.useSetter` | A typed hook for getting setters without subscribing |
 
 **Example:**
 
@@ -201,7 +216,7 @@ The function returns an array that is also augmented with object properties, all
 import { createSignalStore } from 'react-synapse';
 
 // Named destructuring (recommended for clarity)
-const { store, useStore } = createSignalStore({
+const { store, useStore, useSelector, useSetter } = createSignalStore({
   user: { 
     username: 'JohnDoe', 
     age: 30,
@@ -212,7 +227,7 @@ const { store, useStore } = createSignalStore({
 });
 
 // Array destructuring (also valid)
-const [store, useStore] = createSignalStore({
+const [store, useStore, useSelector, useSetter] = createSignalStore({
   user: { name: 'John' },
   theme: 'light'
 });
@@ -221,24 +236,25 @@ const [store, useStore] = createSignalStore({
 const result = createSignalStore({ counter: 0 });
 const store = result.store;           // or result[0]
 const useStore = result.useStore;     // or result[1]
+const useSelector = result.useSelector; // or result[2]
+const useSetter = result.useSetter;   // or result[3]
 
-export { useStore };
+export { useStore, useSelector, useSetter };
 ```
 
 ### `useStore` Hook
 
-A typed React hook returned from `createSignalStore`. Supports multiple access patterns with different return formats.
+A typed React hook returned from `createSignalStore`. Accepts **string keys only** and returns a tuple with the current value and a setter function.
 
-**Return Format Summary:**
+> ⚠️ **Important:** `useStore` only accepts string keys. For function selectors (e.g., `s => s.theme`), use [`useSelector`](#useselector-hook) instead.
+
+**Return Format:**
 
 | Access Pattern | Return Type | Description |
 |----------------|-------------|-------------|
 | `useStore('key')` | `[value, setter]` | Array with `.signal` and `.setSignal` properties |
-| `useStore(s => s.key)` | `value` | Computed value directly (single signal) |
-| `useStore(s => [s.a, s.b])` | `[valueA, valueB]` | Array of computed values |
-| `useStore(s => ({ a: s.a }))` | `{ a: valueA }` | Object with computed values |
 
-#### Pattern 1: String Key (returns `[value, setter]` with named properties)
+#### String Key Pattern (returns `[value, setter]` with named properties)
 
 Access a store value by its key. Returns a tuple with the current value and a setter function. The return value is an array that also has named properties for convenience.
 
@@ -286,24 +302,32 @@ function UserProfile() {
 }
 ```
 
-#### Pattern 2: Function Selector (returns computed value directly)
+### `useSelector` Hook
 
-Use a selector function for read-only access. The selector receives the typed store and returns signals. **Note:** Unlike string keys, function selectors return the computed value directly, not a tuple.
+A typed React hook returned from `createSignalStore` for selecting multiple signals or computed values at once. Use this when you need read-only access to one or more signals.
 
-**Single Signal:**
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `selector` | `(store) => R` | A function that receives the typed store and returns signals |
+
+**Returns:** Unwrapped values (not a tuple)
+
+#### Selecting a Single Signal
 
 ```tsx
 function ThemeDisplay() {
-  const theme = useStore(s => s.theme);
+  const theme = useSelector(s => s.theme);
   return <div className={theme}>Current theme: {theme}</div>;
 }
 ```
 
-**Array of Signals:**
+#### Selecting Multiple Signals (Array)
 
 ```tsx
 function Dashboard() {
-  const [user, theme, counter] = useStore(s => [s.user, s.theme, s.counter]);
+  const [user, theme, counter] = useSelector(s => [s.user, s.theme, s.counter]);
   
   return (
     <div className={theme}>
@@ -314,11 +338,11 @@ function Dashboard() {
 }
 ```
 
-**Object of Signals:**
+#### Selecting Multiple Signals (Object)
 
 ```tsx
 function DashboardStats() {
-  const { currentUser, currentTheme } = useStore(s => ({
+  const { currentUser, currentTheme } = useSelector(s => ({
     currentUser: s.user,
     currentTheme: s.theme
   }));
@@ -333,23 +357,133 @@ function DashboardStats() {
 
 > ⚠️ **Note:** When using arrays or objects, the component re-renders when **any** of the selected signals change.
 
-#### Pattern 3: Options with `unwrap: false`
+### `useSetter` Hook
 
-Get raw signals for fine-grained control:
+A typed React hook returned from `createSignalStore` for getting setter functions without subscribing to value changes. This is useful for performance optimization when you only need to update signals, not read them.
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `selector` | `(store) => R` | A function that receives the typed store and returns signals |
+
+**Returns:** Setter functions only (no values)
+
+#### Getting Multiple Setters
 
 ```tsx
-function FineGrainedComponent() {
-  const { user, theme } = useStore(
-    s => ({ user: s.user, theme: s.theme }),
-    { unwrap: false }
+function UpdateButton() {
+  const { setUser, setTheme } = useSetter(s => ({
+    setUser: s.user,
+    setTheme: s.theme
+  }));
+  
+  // Component won't re-render when user or theme changes
+  // because it doesn't subscribe to values
+  
+  return (
+    <button onClick={() => setUser(draft => { draft.name = 'Jane'; })}>
+      Update User
+    </button>
   );
-  
-  // Access .value directly for fine-grained control
-  console.log(user.value.name);
-  console.log(theme.value);
-  
-  return null;
 }
+```
+
+#### Getting a Single Setter
+
+```tsx
+function ThemeToggle() {
+  const setTheme = useSetter(s => s.theme);
+  
+  return (
+    <button onClick={() => setTheme(theme => theme === 'light' ? 'dark' : 'light')}>
+      Toggle Theme
+    </button>
+  );
+}
+```
+
+> 💡 **Performance Tip:** Use `useSetter` when you only need to update values and don't need to display them. This prevents unnecessary re-renders.
+
+### `createDerivedSignalStore(initialStates)`
+
+Creates a signal store with derived (computed) signals. Unlike `createSignalStore`, this creates read-only signals that compute their values from other signals.
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `initialStates` | `Object` | An object containing `computed` functions for each store entry |
+
+**Returns:**
+
+| Return Format | Description |
+|---------------|-------------|
+| `result.store` | The raw store object with all computed signals |
+| `result.useSelector` | A typed hook for selecting computed values |
+
+> ⚠️ **Note:** Derived signal stores do not include `useStore` or `useSetter` because computed signals are read-only.
+
+**Example:**
+
+```typescript
+import { createDerivedSignalStore, computed, signal } from 'react-synapse';
+
+// Create base signals first
+const $count = signal(0);
+const $multiplier = signal(2);
+
+// Create a derived store with computed values
+const { store, useSelector } = createDerivedSignalStore({
+  doubleCount: computed(() => $count.value * 2),
+  tripleCount: computed(() => $count.value * 3),
+  multiplied: computed(() => $count.value * $multiplier.value),
+});
+
+function DerivedDisplay() {
+  const { doubleCount, multiplied } = useSelector(s => ({
+    doubleCount: s.doubleCount,
+    multiplied: s.multiplied
+  }));
+  
+  return (
+    <div>
+      <p>Double: {doubleCount}</p>
+      <p>Multiplied: {multiplied}</p>
+    </div>
+  );
+}
+```
+
+### `storeFactory(isSignal)`
+
+A lower-level factory function used internally by `createSignalStore` and `createDerivedSignalStore`. Useful for creating custom store variants.
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `isSignal` | `boolean` | When `false`, creates regular signals (returns `useStore`, `useSelector`, `useSetter`). When `true`, creates derived signals (returns only `useSelector`). |
+
+**Returns:** A function that accepts `initialStates` and returns a typed signal store.
+
+**Example:**
+
+```typescript
+import { storeFactory } from 'react-synapse';
+
+// Create a regular signal store factory
+const createRegularStore = storeFactory(false);
+const { store, useStore, useSelector, useSetter } = createRegularStore({
+  count: 0,
+  name: 'John'
+});
+
+// Create a derived signal store factory
+const createDerivedStore = storeFactory(true);
+const { store, useSelector } = createDerivedStore({
+  // computed values only
+});
 ```
 
 ### `useReactive(initialState)`
@@ -556,16 +690,28 @@ const allValues = globalStore.getStoreValues();
 console.log(allValues); // { user: { name: 'Guest' }, ... }
 ```
 
-### `useSignalStore(id, initialState)` (Legacy)
+### `useSignalStore(id, initialState)` — Not Exported
 
-Generic hook for global state. Prefer `useStore` from `createSignalStore` for better TypeScript support.
+> ⚠️ **Deprecated:** `useSignalStore` is no longer exported from this package. Use `createSignalStore` instead, which provides a typed `useStore` hook with better TypeScript support.
+
+**Migration Guide:**
 
 ```javascript
+// ❌ Old (no longer available)
 import { useSignalStore } from 'react-synapse';
+const [count, setCount] = useSignalStore('globalCounter', 0);
 
+// ✅ New - use createSignalStore
+import { createSignalStore } from 'react-synapse';
+
+// Create store at module level
+const { useStore } = createSignalStore({
+  globalCounter: 0
+});
+
+// Use in components
 function Counter() {
-  const [count, setCount] = useSignalStore('globalCounter', 0);
-  
+  const [count, setCount] = useStore('globalCounter');
   return (
     <button onClick={() => setCount(count + 1)}>
       Count: {count}
@@ -738,7 +884,7 @@ function NotificationsSettings() {
 // store.js
 import { createSignalStore } from 'react-synapse';
 
-export const { store, useStore } = createSignalStore({
+export const { store, useStore, useSelector } = createSignalStore({
   products: [] as { id: number; name: string; price: number; category: string }[],
   selectedCategory: 'all'
 });
@@ -747,7 +893,7 @@ export const { store, useStore } = createSignalStore({
 ```jsx
 // ProductDashboard.jsx
 import { computed } from 'react-synapse';
-import { useStore } from './store';
+import { useStore, useSelector } from './store';
 
 // Create computed signals outside components
 const $filteredProducts = computed(() => {
@@ -763,27 +909,19 @@ const $totalPrice = computed(() => {
 });
 
 function ProductDashboard() {
-  // Use array selector for multiple values
-  const [products, selectedCategory] = useStore(s => [
-    s.products,
-    s.selectedCategory
-  ]);
+  // Use string key for write access
+  const [selectedCategory, setSelectedCategory] = useStore('selectedCategory');
   
-  // Or use object selector
-  const { products: allProducts } = useStore(s => ({
-    products: s.products
-  }));
+  // Use selector for read-only access to multiple values
+  const products = useSelector(s => s.products);
 
-  const categories = [...new Set(allProducts.map(p => p.category))];
+  const categories = [...new Set(products.map(p => p.category))];
 
   return (
     <div>
       <select
         value={selectedCategory}
-        onChange={(e) => {
-          const [, setCategory] = useStore('selectedCategory');
-          setCategory(e.target.value);
-        }}
+        onChange={(e) => setSelectedCategory(e.target.value)}
       >
         <option value="all">All Categories</option>
         {categories.map(cat => (
@@ -971,6 +1109,38 @@ function StatusDisplay() {
 
 ## TypeScript Guide
 
+### Exported Types
+
+react-synapse exports several TypeScript types for enhanced type safety:
+
+```typescript
+import type {
+  // Store types
+  TypedSignalStore<T>,        // Return type of createSignalStore
+  TypedDerivedSignalStore<T>, // Return type of createDerivedSignalStore
+  TypedGlobalStore<T>,        // Type for the store object
+  
+  // Hook types
+  TypedUseStore<T>,           // Type for useStore hook
+  SignalSetter<T>,            // Setter function type
+  StoreSelector<T, R>,        // Selector function type
+  
+  // Options
+  UseStoreOptions             // Options for useStore hook
+} from 'react-synapse';
+```
+
+#### Type Descriptions
+
+| Type | Description |
+|------|-------------|
+| `TypedSignalStore<T>` | Return type of `createSignalStore`. Includes `store`, `useStore`, `useSelector`, and `useSetter`. |
+| `TypedDerivedSignalStore<T>` | Return type of `createDerivedSignalStore`. Includes `store` and `useSelector` only. |
+| `TypedGlobalStore<T>` | Type for the store object, mapping keys to signal types. |
+| `SignalSetter<T>` | Setter function type: `(fnOrValue: T \| ((draft: T) => T \| void)) => T` |
+| `StoreSelector<T, R>` | Selector function type: `(store: TypedGlobalStore<T>) => R` |
+| `UseStoreOptions` | Options object with `unwrap` property (default: `true`) |
+
 ### Basic Type Setup
 
 ```typescript
@@ -1042,18 +1212,18 @@ function Header() {
 ### Type Inference with Selectors
 
 ```tsx
-// The selector pattern also maintains type safety
+// The selector pattern maintains type safety with useSelector
 function Dashboard() {
   // Single signal - typed correctly
-  const theme = useStore(s => s.theme); // theme: 'light' | 'dark'
+  const theme = useSelector(s => s.theme); // theme: 'light' | 'dark'
   
   // Array selector - each element typed
-  const [user, notifications] = useStore(s => [s.user, s.notifications]);
+  const [user, notifications] = useSelector(s => [s.user, s.notifications]);
   // user: User | null
   // notifications: string[]
   
   // Object selector - properties typed
-  const { currentUser } = useStore(s => ({ currentUser: s.user }));
+  const { currentUser } = useSelector(s => ({ currentUser: s.user }));
   // currentUser: User | null
   
   return null;
@@ -1095,14 +1265,14 @@ export const { store, useStore } = createSignalStore({
 
 ### 2. Use String Keys for Write Access
 
-When you need to update state, use the string key pattern:
+When you need to update state, use the string key pattern with `useStore`:
 
 ```tsx
 // ✓ Good - provides setter
 const [user, setUser] = useStore('user');
 
-// ⚠️ For read-only, function selector is fine
-const user = useStore(s => s.user);
+// ✓ For read-only, use useSelector
+const user = useSelector(s => s.user);
 ```
 
 ### 3. Split Large Objects
@@ -1215,14 +1385,14 @@ function BadComponent() {
 
 // ✅ Do: Use the hook
 function GoodComponent() {
-  const value = useStore(s => s.someValue);
+  const value = useSelector(s => s.someValue);
   return <div>{value}</div>;
 }
 
 // ❌ Don't: Creating selectors that return new objects every time
 function BadComponent() {
   // Creates new object every render - causes infinite loops
-  const data = useStore(s => ({ 
+  const data = useSelector(s => ({ 
     user: s.user.value,  // Accessing .value inside selector
     theme: s.theme 
   }));
@@ -1230,7 +1400,7 @@ function BadComponent() {
 
 // ✅ Do: Return signals directly
 function GoodComponent() {
-  const data = useStore(s => ({ 
+  const data = useSelector(s => ({ 
     user: s.user,  // Return signal, not .value
     theme: s.theme 
   }));
@@ -1239,13 +1409,13 @@ function GoodComponent() {
 // ❌ Don't: Using array/object selectors when you only need one value
 function BadComponent() {
   // Re-renders when ANY of these change
-  const [user, theme, settings] = useStore(s => [s.user, s.theme, s.settings]);
+  const [user, theme, settings] = useSelector(s => [s.user, s.theme, s.settings]);
   return <div>{user.name}</div>; // Only uses user!
 }
 
 // ✅ Do: Subscribe only to what you need
 function GoodComponent() {
-  const user = useStore(s => s.user); // Only re-renders on user changes
+  const user = useSelector(s => s.user); // Only re-renders on user changes
   return <div>{user.name}</div>;
 }
 ```
@@ -1380,13 +1550,25 @@ react-synapse provides multiple entry points for tree-shaking:
 
 ```javascript
 // Main export - everything
-import { useStore, createSignalStore, useReactive } from 'react-synapse';
+import { 
+  createSignalStore, 
+  createDerivedSignalStore,
+  storeFactory,
+  useReactive, 
+  useReactiveSignal,
+  createSignal,
+  signal,
+  computed,
+  effect,
+  batch,
+  globalStore
+} from 'react-synapse';
 
 // Store-specific exports only
-import { useSignalStore, createSignalStore, globalStore } from 'react-synapse/store';
+import { createSignalStore, createDerivedSignalStore, storeFactory, globalStore } from 'react-synapse/store';
 
 // Signal primitives only
-import { useReactive, useReactiveSignal, createSignal, signal, computed, effect } from 'react-synapse/signals';
+import { useReactive, useReactiveSignal, createSignal, signal, computed, effect, batch } from 'react-synapse/signals';
 ```
 
 ## License
