@@ -196,34 +196,62 @@ const createUseSetter = (store) => {
 }
 
 /**
- * Create multiple signal stores from an initial states object.
- * Returns a typed store and hooks for full type inference.
- * 
- * @param {Object} initialStates - Object containing initial values for each store
- * @returns {{ store: Object, useStore: Function, useSelector: Function, useSetter: Function }} An object with the typed store and hooks
- * 
+ * Factory function for creating typed signal stores with associated React hooks.
+ *
+ * This is a curried function that first takes a boolean flag indicating whether the store
+ * should use derived signals, then returns a function that accepts the initial states object.
+ *
+ * The factory creates a local store with signals for each key in the initial states object,
+ * and returns an array/object hybrid containing the store and typed hooks for accessing,
+ * selecting, and updating the signal values.
+ *
+ * @template {Record<string, any>} T - The shape of the initial state object, mapping keys to their value types
+ *
+ * @param {boolean} isSignal - When true, creates derived signals; when false, creates regular signals.
+ *                            Derived signals can compute values based on other signals.
+ *
+ * @returns {(initialStates: T) => TypedSignalStore<T> | TypedDerivedSignalStore<T>} A function that accepts initial states and returns
+ *          a typed signal store. When isSignal=false, returns full store with useStore, useSelector, useSetter.
+ *          When isSignal=true, returns derived store with only store and useSelector.
+ *
  * @example
+ * // Create a factory for regular signals (isSignal=false)
+ * const createSignalStore = storeFactory(false)
+ *
+ * // Create a store with typed initial states - has useStore, useSelector, useSetter
  * const { store, useStore, useSelector, useSetter } = createSignalStore({
  *   user: { name: 'John', age: 30 },
- *   theme: 'light'
+ *   theme: 'light',
+ *   count: 0
  * })
- * 
- * // String key pattern - returns [value, setter]
+ *
+ * // Access individual signals with string key pattern
  * const [user, setUser] = useStore('user')
+ * const [count, setCount] = useStore('count')
+ *
+ * // Create a factory for derived signals (isSignal=true)
+ * import { computed } from 'react-set-signal'
+ * const createDerivedSignalStore = storeFactory(true)
+ *
+ * // Create a derived store - only has store and useSelector
+ * // Note: Values must be Computed functions
+ * const { store, useSelector } = createDerivedSignalStore({
+ *   count: computed(() => 0),
+ *   doubleCount: computed((get) => get(store.count) * 2)
+ * })
  *
  * // Select multiple values at once
  * const { user, theme } = useSelector(s => ({
  *   user: s.user,
  *   theme: s.theme
  * }))
- * 
- * // Get setters without subscribing to changes
- * const { setUser, setTheme } = useSetter(s => ({
- *   setUser: s.user,
- *   setTheme: s.theme
- * }))
+ *
+ * @throws {Error} When initialStates is not a valid object
+ *
+ * @see {@link createSignalStore} - Pre-configured storeFactory(false) for regular signals
+ * @see {@link createDerivedSignalStore} - Pre-configured storeFactory(true) for derived signals
  */
-const createSignalStore = (initialStates) => {
+const storeFactory = (isSignal) => (initialStates) => {
     if (typeof initialStates !== 'object' || initialStates === null) {
         throw new Error("createSignalStore expects an object as initialStates")
     }
@@ -231,7 +259,7 @@ const createSignalStore = (initialStates) => {
 
     // Create all signals in the local store
     for (const key in initialStates) {
-        localStore.setStoreState(key, initialStates[key])
+        localStore.setStoreState(key, initialStates[key], isSignal)
     }
 
     const store = localStore.getStore()
@@ -240,8 +268,73 @@ const createSignalStore = (initialStates) => {
     const useSetter = createUseSetter(store)
 
     // Return both the store and a typed useStore hook
+    if (isSignal) {
+        return Object.assign([store, useSelector], { store, useSelector })
+    }
     return Object.assign([store, useStore, useSelector, useSetter], { store, useStore, useSelector, useSetter })
 }
 
-export { createSignalStore }
+/**
+ * Create a signal store with regular (non-derived) signals.
+ *
+ * This is a pre-configured instance of {@link storeFactory} with `isSignal=false`.
+ * Creates a local store where each key in the initial states object becomes a regular signal.
+ *
+ * @template {Record<string, any>} T - The shape of the initial state object
+ * @param {T} initialStates - Object containing initial values for each store entry
+ * @returns {TypedSignalStore<T>} A typed signal store with store, useStore, useSelector, and useSetter
+ *
+ * @example
+ * const { store, useStore, useSelector, useSetter } = createSignalStore({
+ *   user: { name: 'John', age: 30 },
+ *   theme: 'light'
+ * })
+ *
+ * // Use string key pattern for individual signals
+ * const [user, setUser] = useStore('user')
+ *
+ * // Select multiple signals
+ * const { user, theme } = useSelector(s => ({ user: s.user, theme: s.theme }))
+ *
+ * // Get setters without subscribing
+ * const { setUser } = useSetter(s => ({ setUser: s.user }))
+ */
+const createSignalStore = storeFactory(false)
+
+/**
+ * Create a signal store with derived signals.
+ *
+ * This is a pre-configured instance of {@link storeFactory} with `isSignal=true`.
+ * Creates a local store where each key in the initial states object becomes a derived signal,
+ * which can compute values based on other signals.
+ *
+ * Note: Derived signal stores only expose `store` and `useSelector`. They do not include
+ * `useStore` or `useSetter` because derived signals are read-only and computed from other signals.
+ *
+ * Important: All values in the initialStates object must be Computed functions. Regular values
+ * will throw an error. Use `computed()` from react-set-signal to create computed values.
+ *
+ * @template {Record<string, any>} T - The shape of the initial state object
+ * @param {T} initialStates - Object containing Computed functions for each store entry
+ * @returns {TypedDerivedSignalStore<T>} A typed signal store with store and useSelector only
+ *
+ * @throws {Error} When any value in initialStates is not a Computed function
+ *
+ * @example
+ * import { computed } from 'react-set-signal'
+ *
+ * const { store, useSelector } = createDerivedSignalStore({
+ *   count: computed(() => 0),
+ *   doubleCount: computed((get) => get(store.count) * 2)
+ * })
+ *
+ * // Select values from the derived store
+ * const { count, doubleCount } = useSelector(s => ({
+ *   count: s.count,
+ *   doubleCount: s.doubleCount
+ * }))
+ */
+const createDerivedSignalStore = storeFactory(true)
+
+export { storeFactory, createSignalStore, createDerivedSignalStore }
 export default createSignalStore;

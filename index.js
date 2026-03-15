@@ -1,7 +1,7 @@
 export { useReactive, useReactiveSignal, createSignal } from "react-set-signal";
 
 // Global Store
-export { createSignalStore } from "./hooks/useSignalStore";
+export { storeFactory, createSignalStore, createDerivedSignalStore } from "./hooks/useSignalStore";
 export { globalStore } from "./hooks/globalStore";
 
 // Re-export Preact Signals Core

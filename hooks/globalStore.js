@@ -1,4 +1,4 @@
-import { createSignal } from "react-set-signal"
+import { Computed, createSignal, Signal } from "react-set-signal"
 
 class GlobalStore {
     store = {}
@@ -23,9 +23,12 @@ class GlobalStore {
     }
     // --------------
 
-    setStoreState(key, value) {
+    setStoreState(key, value, isSignal = false) {
         if (!(key in this.store)) {
-            this.store[key] = createSignal(value)
+            if (isSignal && !(value instanceof Computed))
+                throw new Error(`When creating a derived signal store value for key "${key}" must be a Computed function.`)
+
+            this.store[key] = isSignal ? value : createSignal(value)
             this.store[key].id = key
         }
         else {

@@ -1,5 +1,5 @@
 // Main exports
-export { useSignalStore, createSignalStore } from './hooks/useSignalStore'
+export { useSignalStore, createSignalStore, createDerivedSignalStore, storeFactory } from './hooks/useSignalStore'
 
 // Global Store
 export { globalStore } from "./hooks/globalStore";
@@ -8,6 +8,7 @@ export { globalStore } from "./hooks/globalStore";
 export type {
   TypedGlobalStore,
   TypedSignalStore,
+  TypedDerivedSignalStore,
   TypedUseStore,
   SignalSetter,
   StoreSelector,
