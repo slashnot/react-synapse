@@ -237,7 +237,7 @@ const createUseSetter = (store) => {
  * // Note: Values must be Computed functions
  * const { store, useSelector } = createDerivedSignalStore({
  *   count: computed(() => 0),
- *   doubleCount: computed((get) => get(store.count) * 2)
+ *   doubleCount: computed(() => store.count.value * 2)
  * })
  *
  * // Select multiple values at once
@@ -268,9 +268,9 @@ const storeFactory = (isSignal) => (initialStates) => {
     const useSetter = createUseSetter(store)
 
     // Return both the store and a typed useStore hook
-    if (isSignal) {
-        return Object.assign([store, useSelector], { store, useSelector })
-    }
+    // if (isSignal) {
+    //     return Object.assign([store, useSelector], { store, useSelector })
+    // }
     return Object.assign([store, useStore, useSelector, useSetter], { store, useStore, useSelector, useSetter })
 }
 
@@ -325,7 +325,7 @@ const createSignalStore = storeFactory(false)
  *
  * const { store, useSelector } = createDerivedSignalStore({
  *   count: computed(() => 0),
- *   doubleCount: computed((get) => get(store.count) * 2)
+ *   doubleCount: computed(() => store.count.value * 2)
  * })
  *
  * // Select values from the derived store

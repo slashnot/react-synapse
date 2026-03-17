@@ -1,6 +1,6 @@
 // Store-specific exports
-export { useSignalStore, createSignalStore, createDerivedSignalStore, storeFactory } from "./hooks/useSignalStore";
-export { globalStore, GlobalStore } from "./hooks/globalStore";
+export { useSignalStore } from "./hooks/useSignalStore";
+export { globalStore } from "./hooks/globalStore";
 
 // Store-specific types
 export type { GlobalStore, GenericStoreType, StoreState } from "./hooks/globalStore";
@@ -38,9 +38,9 @@ export declare function storeFactory<T extends Record<string, any>>(
   isSignal: false
 ): (initialStates: T) => import("./hooks/useSignalStore").TypedSignalStore<T>;
 
-export declare function storeFactory<T extends Record<string, import("react-set-signal").Computed<any>>>(
+export declare function storeFactory<T extends Record<string, import("react-set-signal").ReadonlySignal<any>>>(
   isSignal: true
-): (initialStates: T) => import("./hooks/useSignalStore").TypedDerivedSignalStore<{ [K in keyof T]: T[K] extends import("react-set-signal").Computed<infer V> ? V : never }>;
+): (initialStates: T) => import("./hooks/useSignalStore").TypedDerivedSignalStore<{ [K in keyof T]: T[K] extends import("react-set-signal").ReadonlySignal<infer V> ? V : T[K] }>;
 
 export declare function storeFactory<T extends Record<string, any>>(
   isSignal: boolean
@@ -78,12 +78,12 @@ export declare function createSignalStore<T extends Record<string, any>>(
  * @returns A typed signal store with store, useStore, useSelector, and useSetter
  *
  * @example
- * const { store, useStore } = createDerivedSignalStore({
- *   count: 0,
- *   doubleCount: (get) => get(count) * 2
+ * const { store, useSelector } = createDerivedSignalStore({
+ *   count: computed(() => 0),
+ *   doubleCount: computed(() => store.count.value * 2)
  * })
  */
-export declare function createDerivedSignalStore<T extends Record<string, import("react-set-signal").Computed<any>>>(
+export declare function createDerivedSignalStore<T extends Record<string, import("react-set-signal").ReadonlySignal<any>>>(
   initialStates: T
-): import("./hooks/useSignalStore").TypedDerivedSignalStore<{ [K in keyof T]: T[K] extends import("react-set-signal").Computed<infer V> ? V : never }>;
+): import("./hooks/useSignalStore").TypedDerivedSignalStore<{ [K in keyof T]: T[K] extends import("react-set-signal").ReadonlySignal<infer V> ? V : T[K] }>;
 

@@ -1,4 +1,4 @@
-import { ReactSetSignal, Computed } from 'react-set-signal'
+import { ReactSetSignal, ReadonlySignal } from 'react-set-signal'
 
 /**
  * Type-safe global store mapping keys to their signal types
@@ -264,8 +264,8 @@ export type TypedDerivedSignalStore<T extends Record<string, any>> = [TypedGloba
    * @example
    * ```tsx
    * const { store, useSelector } = createDerivedSignalStore({
-   *   count: 0,
-   *   doubleCount: (get) => get(store.count) * 2
+   *   count: computed(() => 0),
+   *   doubleCount: computed(() => store.count.value * 2)
    * })
    * 
    * // Subscribe to multiple derived signals at once
@@ -349,7 +349,7 @@ export function createSignalStore<T extends Record<string, any>>(
  *
  * const { store, useSelector } = createDerivedSignalStore({
  *   count: computed(() => 0),
- *   doubleCount: computed((get) => get(store.count) * 2)
+ *   doubleCount: computed(() => store.count.value * 2)
  * })
  *
  * // Select values from the derived store
@@ -359,9 +359,9 @@ export function createSignalStore<T extends Record<string, any>>(
  * }))
  * ```
  */
-export function createDerivedSignalStore<T extends Record<string, Computed<any>>>(
+export function createDerivedSignalStore<T extends Record<string, ReadonlySignal<any>>>(
   initialStates: T
-): TypedDerivedSignalStore<{ [K in keyof T]: T[K] extends Computed<infer V> ? V : never }>
+): TypedDerivedSignalStore<{ [K in keyof T]: T[K] extends ReadonlySignal<infer V> ? V : T[K] }>
 
 /**
  * Factory function for creating typed signal stores with associated React hooks.
@@ -396,9 +396,9 @@ export function storeFactory<T extends Record<string, any>>(
  * Factory function overload for creating derived signal stores (isSignal=true)
  * Note: Values must be Computed functions
  */
-export function storeFactory<T extends Record<string, Computed<any>>>(
+export function storeFactory<T extends Record<string, ReadonlySignal<any>>>(
   isSignal: true
-): (initialStates: T) => TypedDerivedSignalStore<{ [K in keyof T]: T[K] extends Computed<infer V> ? V : never }>
+): (initialStates: T) => TypedDerivedSignalStore<{ [K in keyof T]: T[K] extends ReadonlySignal<infer V> ? V : T[K] }>
 
 /**
  * Factory function general signature for boolean isSignal
