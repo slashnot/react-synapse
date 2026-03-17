@@ -2,7 +2,7 @@
 index.js
 store.js
 signals.js
-hooks/
+hooks/*.js
 tests/
 example/
 

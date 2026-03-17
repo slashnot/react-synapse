@@ -28,7 +28,10 @@
     "dist",
     "index.d.ts",
     "store.d.ts",
-    "signals.d.ts"
+    "signals.d.ts",
+    "mutative.d.ts",
+    "hooks/useSignalStore.d.ts",
+    "hooks/globalStore.d.ts"
   ],
   "license": "ISC",
   "exports": {
